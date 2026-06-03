@@ -1,11 +1,11 @@
-# BAND Mesh — Adversarial Agentic Security Patching Network
+# AegisMesh — Adversarial Agentic Security Patching Network
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 [![LangGraph](https://img.shields.io/badge/LangGraph-✓-brightgreen)](https://langchain-ai.github.io/langgraph/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.42-red)](https://streamlit.io/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-**BAND Mesh** is an in-process multi-agent system that autonomously patches security vulnerabilities through an adversarial red-team/blue-team feedback loop. Two AI agents — a **Blue Coder** (code generator) and a **Red Auditor** (adversarial security tester) — collaborate over a shared event bus to iteratively produce hardened, exploit-resistant patches.
+**AegisMesh** is an in-process multi-agent system that autonomously patches security vulnerabilities through an adversarial red-team/blue-team feedback loop. Two AI agents — a **Blue Coder** (code generator) and a **Red Auditor** (adversarial security tester) — collaborate over a shared event bus to iteratively produce hardened, exploit-resistant patches.
 
 ---
 
@@ -13,7 +13,7 @@
 
 ```
                     ┌──────────────────────────────────────────────┐
-                    │              BAND Mesh Channel               │
+                    │              AegisMesh Channel               │
                     │  (Pub/Sub Event Bus + Shared State)          │
                     │                                              │
                     │  Events: VULNERABILITY_TRIAGED               │
@@ -77,8 +77,8 @@ python >= 3.10
 ### Installation
 
 ```bash
-git clone https://github.com/yourusername/band-mesh.git
-cd band-mesh
+git clone https://github.com/yourusername/aegismesh.git
+cd aegismesh
 python -m venv .venv
 source .venv/bin/activate  # or .venv\Scripts\activate on Windows
 pip install -r requirements.txt
@@ -121,7 +121,7 @@ python main.py
 ## Project Structure
 
 ```
-band-mesh/
+aegismesh/
 ├── core/
 │   ├── __init__.py
 │   ├── band_mesh.py          # Pub/sub event bus + shared state
