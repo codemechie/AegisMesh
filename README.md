@@ -7,7 +7,7 @@
 [![LangGraph](https://img.shields.io/badge/LangGraph-✓-brightgreen)](https://langchain-ai.github.io/langgraph/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-**AegisMesh** is an in-process multi-agent system that autonomously patches security vulnerabilities through an adversarial red-team/blue-team feedback loop. Two AI agents — a **Blue Coder** (code generator) and a **Red Auditor** (adversarial security tester) — collaborate over a shared event bus to iteratively produce hardened, exploit-resistant patches. Results are surfaced through a dark-theme security operations dashboard.
+**AegisMesh** is an in-process multi-agent system that autonomously patches security vulnerabilities through an adversarial red-team/blue-team feedback loop. Two AI agents — a **Blue Coder** (code generator) and a **Red Auditor** (adversarial security tester) — collaborate over a shared event bus to iteratively produce hardened, exploit-resistant patches. 
 
 ---
 
