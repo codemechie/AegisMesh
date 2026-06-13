@@ -22,7 +22,10 @@ env/
 # Project-specific
 context.txt
 concepts.md
-
+AEGISMESH_AUDIT_REPORT.md
+INFERENCE.md
+SPRINT1_SNAPSHOT.md
+sprint_4_prompt_A1.md
 # OS
 Thumbs.db
 .DS_Store
