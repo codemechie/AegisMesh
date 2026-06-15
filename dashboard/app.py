@@ -87,6 +87,27 @@ with col_left:
     else:
         st.info("Awaiting code mitigation loops from Agent 2...")
 
+with col_left:
+    st.subheader("📊 Benchmark Telemetry")
+    bt = mesh.shared_context.get("benchmark_telemetry", {})
+    if bt and bt.get("time_started"):
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Mesh Iterations", bt["mesh_iterations"])
+        c2.metric("Verified Exploits", bt["verified_exploits"])
+        c3.metric("Speculative Risks", bt["speculative_risks"])
+        c1.metric("Informational", bt["informational_findings"])
+        c2.metric("Final Status", bt["final_status"] or "Running...")
+        c3.metric("Blue Model", bt["blue_model"])
+        st.caption(f"Red Model: {bt['red_model']}")
+        deg = bt.get("audit_degradations", 0)
+        st.metric("Audit Degradations", f"{deg} → {'Healthy' if deg == 0 else 'Recovered'}")
+        if bt.get("time_started"):
+            st.caption(f"Started: {bt['time_started']}")
+        if bt.get("time_completed"):
+            st.caption(f"Completed: {bt['time_completed']}")
+    else:
+        st.info("Benchmark telemetry will display once the mesh executes.")
+
 with col_right:
     st.subheader("🧠 DeepSeek-R1 Graph of Thoughts (GoT)")
 
@@ -95,6 +116,12 @@ with col_right:
     if history:
         latest_audit = history[-1]
         st.write(f"**Audit Verdict:** {'✅ SECURE' if latest_audit['is_secure'] else '❌ VULNERABLE'}")
+        st.write(f"**Finding Type:** {latest_audit.get('finding_type', 'N/A')}")
+        st.write(f"**Confidence:** {latest_audit.get('confidence', 'N/A')}")
+        if latest_audit.get('evidence'):
+            with st.expander("**Evidence**"):
+                for ev in latest_audit['evidence']:
+                    st.markdown(f"- **{ev['file']}**:{ev['line']} — {ev['reason']}")
         if latest_audit['exploit_found']:
             st.error(f"**Exploit Path Vector:** {latest_audit['exploit_found']}")
 

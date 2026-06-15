@@ -1,6 +1,11 @@
 # core/aiml_client.py
 import os
 import json
+import re
+from dotenv import load_dotenv
+import openai
+
+load_dotenv()
 
 
 class MockCompletions:
@@ -25,6 +30,11 @@ class MockCompletions:
                 mock_critique = {
                     "patch_id": "patch-mock-uuid-112233",
                     "is_secure": False,
+                    "finding_type": "VERIFIED_EXPLOIT",
+                    "confidence": "HIGH",
+                    "evidence": [
+                        {"file": "submitted.py", "line": 3, "reason": "Character truncation allows payload injection past parameterized boundary"}
+                    ],
                     "exploit_found": "Passed secondary payload injection through character truncation on line 3.",
                     "graph_of_thoughts": [
                         {"thought_id": "T1", "hypothesis": "Testing SQLi basic bypass",
@@ -37,6 +47,9 @@ class MockCompletions:
                 mock_critique = {
                     "patch_id": "patch-mock-uuid-445566",
                     "is_secure": True,
+                    "finding_type": "INFORMATIONAL",
+                    "confidence": "HIGH",
+                    "evidence": [],
                     "exploit_found": None,
                     "graph_of_thoughts": [
                         {"thought_id": "T1", "hypothesis": "Re-testing truncation overflows",
@@ -66,16 +79,25 @@ class MockMessage:
         self.content = content_string
 
 
+def extract_json(text: str) -> str:
+    text = re.sub(r'^```(?:json)?\s*', '', text.strip())
+    text = re.sub(r'\s*```$', '', text)
+    return text.strip()
+
+
 class AIMLClient:
     """The central SDK wrapper switch used across all agents."""
 
     def __init__(self, api_key: str):
-        self.api_key = api_key
-        # Check an environment flag to toggle the real API
+        self.api_key = api_key or os.getenv("AI_ML_API_KEY")
         if os.getenv("USE_REAL_AI_ML_API") == "TRUE":
-            print("[LLM ENGINE] Connecting to live AI/ML API cloud endpoint...")
-            # Here you would initialize the real OpenAI/AI_ML_API standard package
-            self.chat = None  # Real client initialization goes here on June 12
+            base_url = os.getenv("AI_ML_API_BASE_URL", "https://api.openai.com/v1")
+            print(f"[LLM ENGINE] Connecting to live AI/ML API endpoint: {base_url}", flush=True)
+            self.chat = openai.OpenAI(
+                api_key=self.api_key,
+                base_url=base_url,
+                timeout=90,
+            ).chat
         else:
             print("[LLM ENGINE] Operating in offline MOCK mode. Zero credit consumption.")
             self.chat = MockChat()

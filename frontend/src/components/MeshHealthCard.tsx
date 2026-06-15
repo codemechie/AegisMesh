@@ -39,6 +39,17 @@ const MeshHealthCard: FC<MeshHealthCardProps> = ({ ctx }) => {
         <Metric label="Events" value={ctx.event_history.length} />
         <Metric label="Failures" value={ctx.agent_failures.length} />
       </div>
+      {ctx.benchmark_telemetry && ctx.benchmark_telemetry.time_started && (
+        <>
+          <hr className="my-3 border-[#1f2937]" />
+          <div className="grid grid-cols-2 gap-3">
+            <Metric label="Verified Exploits" value={ctx.benchmark_telemetry.verified_exploits} />
+            <Metric label="Speculative Risks" value={ctx.benchmark_telemetry.speculative_risks} />
+            <Metric label="Informational" value={ctx.benchmark_telemetry.informational_findings} />
+            <Metric label="Final Status" value={ctx.benchmark_telemetry.final_status ?? "Running..."} />
+          </div>
+        </>
+      )}
     </div>
   );
 };

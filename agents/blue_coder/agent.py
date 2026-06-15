@@ -1,14 +1,38 @@
+import sys
 from langgraph.graph import StateGraph, END
-from schemas.models import PatchProposal
+from schemas.models import PatchProposal, VulnerabilityReport
 from agents.blue_coder.graph import BlueCoderState
 
-from core.aiml_client import ai_client
+from core.aiml_client import ai_client, extract_json
 
 
 def write_patch_node(state: BlueCoderState) -> dict:
-    print(f"\n[Blue Coder] Writing patch iteration {state['iteration_count'] + 1}...")
+    print(f"\n[Blue Coder] Writing patch iteration {state['iteration_count'] + 1}...", flush=True)
+    print("[Blue Coder] Calling AIMLAPI Qwen3-Coder (may take 30-60s)...", flush=True)
 
-    prompt = f"""
+    previous_vuln = state.get("vulnerability", None)
+    iter_num = state.get("iteration_count", 0) + 1
+    is_revision = "PREVIOUS PATCH EXPLOITED" in (state.get("vulnerability", VulnerabilityReport(description="", target_lines=[], severity="")).description)
+
+    if is_revision:
+        prompt = f"""
+    [ITERATION {iter_num} — REVISION REQUESTED]
+
+    Your last patch was exploited by an adversarial auditor. Fix it properly.
+
+    Source Code:
+    ```
+    {state['source_file'].raw_code}
+    ```
+
+    Auditor's Exploit Finding: {state['vulnerability'].description}
+
+    Return ONLY valid PatchProposal JSON (a patch_id string, proposed_code string, architectural_changes string, dependencies_added array). No extra text.
+    """
+    else:
+        prompt = f"""
+    [ITERATION {iter_num} — INITIAL PATCH]
+
     You are an elite secure-coding agent. Fix the security bug highlighted below.
 
     Source Code:
@@ -20,19 +44,27 @@ def write_patch_node(state: BlueCoderState) -> dict:
     {state['vulnerability'].description}
     Target Lines: {state['vulnerability'].target_lines}
 
-    Previous Compiler Errors (If any):
-    {state['compiler_logs'] if state['compiler_logs'] else 'None. This is your first attempt.'}
+    Previous Compiler Errors:
+    {state['compiler_logs'] if state['compiler_logs'] else 'None'}
 
-    Return your response using the PatchProposal schema format.
+    Return ONLY valid PatchProposal JSON (a patch_id string, proposed_code string, architectural_changes string, dependencies_added array). No extra text.
     """
 
     response = ai_client.chat.completions.create(
-        model="qwen-2.5-coder-72b-instruct",
+        model="alibaba/qwen3-coder-480b-a35b-instruct",
         messages=[{"role": "user", "content": prompt}],
-        response_format={"type": "json_object", "schema": PatchProposal.model_json_schema()}
+        max_tokens=1024,
+        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "PatchProposal",
+                "schema": PatchProposal.model_json_schema()
+            }
+        }
     )
 
-    patch_data = PatchProposal.model_validate_json(response.choices[0].message.content)
+    print("[Blue Coder] API response received.", flush=True)
+    patch_data = PatchProposal.model_validate_json(extract_json(response.choices[0].message.content))
 
     return {
         "current_patch": patch_data,
@@ -41,7 +73,7 @@ def write_patch_node(state: BlueCoderState) -> dict:
 
 
 def compile_verification_node(state: BlueCoderState) -> dict:
-    print("[Blue Coder] Running syntax compiler checks...")
+    print("[Blue Coder] Running syntax compiler checks...", flush=True)
     patch = state["current_patch"]
 
     if patch is None:
@@ -60,10 +92,10 @@ def compile_verification_node(state: BlueCoderState) -> dict:
 
 def routing_evaluator(state: BlueCoderState) -> str:
     if state["compiler_logs"] != "SUCCESS" and state["iteration_count"] < state["max_iterations"]:
-        print("Compiler check failed. Routing back to code-gen.")
+        print("Compiler check failed. Routing back to code-gen.", flush=True)
         return "retry"
 
-    print("Compiler checks passed or max budget met. Routing to output.")
+    print("Compiler checks passed or max budget met. Routing to output.", flush=True)
     return "finalize"
 
 

@@ -25,9 +25,18 @@ export interface ThoughtNode {
   parent_thoughts: string[];
 }
 
+export interface Evidence {
+  file: string;
+  line: number;
+  reason: string;
+}
+
 export interface AuditCritique {
   patch_id: string;
   is_secure: boolean;
+  finding_type: "VERIFIED_EXPLOIT" | "SPECULATIVE_RISK" | "INFORMATIONAL";
+  confidence: string;
+  evidence: Evidence[];
   exploit_found: string | null;
   graph_of_thoughts: ThoughtNode[];
 }
@@ -52,6 +61,19 @@ export interface ExploitChainEntry {
   severity: string;
 }
 
+export interface BenchmarkTelemetry {
+  blue_model: string;
+  red_model: string;
+  mesh_iterations: number;
+  verified_exploits: number;
+  speculative_risks: number;
+  informational_findings: number;
+  audit_degradations: number;
+  final_status: string | null;
+  time_started: string | null;
+  time_completed: string | null;
+}
+
 export interface MeshContext {
   session_id: string;
   status: string;
@@ -68,6 +90,7 @@ export interface MeshContext {
   event_history: EventRecord[];
   last_event_id: string | null;
   agent_failures: AgentFailure[];
+  benchmark_telemetry: BenchmarkTelemetry;
 }
 
 export interface RunRequest {

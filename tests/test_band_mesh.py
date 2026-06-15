@@ -1,5 +1,6 @@
 import uuid
 from core.band_mesh import BandMeshChannel
+from schemas.telemetry import BenchmarkTelemetry
 
 
 def make_mesh():
@@ -77,7 +78,7 @@ class TestListenerExceptionIsolation:
 
         mesh.subscribe("AUDIT_COMPLETED", listener_a)
         mesh.subscribe("AUDIT_COMPLETED", listener_b)
-        mesh.broadcast("AUDIT_COMPLETED", {"critique": {"is_secure": True}})
+        mesh.broadcast("AUDIT_COMPLETED", {"critique": {"is_secure": True, "finding_type": "INFORMATIONAL"}})
         assert len(b_executed) == 1
 
 
@@ -94,7 +95,7 @@ class TestEventProvenance:
 
     def test_event_contains_metadata(self):
         mesh = make_mesh()
-        mesh.broadcast("AUDIT_COMPLETED", {"critique": {"is_secure": True}})
+        mesh.broadcast("AUDIT_COMPLETED", {"critique": {"is_secure": True, "finding_type": "INFORMATIONAL"}})
         record = mesh.shared_context["event_history"][0]
         assert "event_id" in record
         assert "timestamp" in record
@@ -111,7 +112,7 @@ class TestEventProvenance:
         mesh = make_mesh()
         mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
         mesh.broadcast("PATCH_PROPOSED", {"patch": {"patch_id": "p1"}})
-        mesh.broadcast("AUDIT_COMPLETED", {"critique": {"is_secure": True}})
+        mesh.broadcast("AUDIT_COMPLETED", {"critique": {"is_secure": True, "finding_type": "INFORMATIONAL"}})
         e1 = mesh.shared_context["event_history"][0]
         e2 = mesh.shared_context["event_history"][1]
         e3 = mesh.shared_context["event_history"][2]
@@ -122,7 +123,7 @@ class TestEventProvenance:
         mesh = make_mesh()
         mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
         mesh.broadcast("PATCH_PROPOSED", {"patch": {"patch_id": "p1"}})
-        mesh.broadcast("AUDIT_COMPLETED", {"critique": {"is_secure": True}})
+        mesh.broadcast("AUDIT_COMPLETED", {"critique": {"is_secure": True, "finding_type": "INFORMATIONAL"}})
         ids = [e["event_id"] for e in mesh.shared_context["event_history"]]
         assert len(set(ids)) == len(ids)
 
@@ -132,3 +133,105 @@ class TestEventProvenance:
         mesh.broadcast("PATCH_PROPOSED", {"patch": {"patch_id": "p1"}})
         latest = mesh.shared_context["event_history"][-1]["event_id"]
         assert mesh.shared_context["last_event_id"] == latest
+
+
+class TestBenchmarkTelemetry:
+    def test_telemetry_initializes_with_defaults(self):
+        mesh = make_mesh()
+        bt = mesh.shared_context["benchmark_telemetry"]
+        assert bt["blue_model"] == "Qwen-2.5-Coder-72B"
+        assert bt["red_model"] == "DeepSeek-R1"
+        assert bt["mesh_iterations"] == 0
+        assert bt["verified_exploits"] == 0
+        assert bt["speculative_risks"] == 0
+        assert bt["informational_findings"] == 0
+        assert bt["final_status"] is None
+        assert bt["time_started"] is None
+        assert bt["time_completed"] is None
+
+    def test_time_started_set_on_first_event(self):
+        mesh = make_mesh()
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        assert mesh.shared_context["benchmark_telemetry"]["time_started"] is not None
+
+    def test_telemetry_tracks_iterations(self):
+        mesh = make_mesh()
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        assert mesh.shared_context["benchmark_telemetry"]["mesh_iterations"] == 1
+
+    def test_telemetry_counts_verified_exploit(self):
+        mesh = make_mesh()
+        mesh.broadcast("AUDIT_COMPLETED", {"critique": {
+            "is_secure": False, "finding_type": "VERIFIED_EXPLOIT", "confidence": "HIGH",
+            "evidence": [{"file": "x.py", "line": 1, "reason": "test"}]
+        }})
+        bt = mesh.shared_context["benchmark_telemetry"]
+        assert bt["verified_exploits"] == 1
+        assert bt["speculative_risks"] == 0
+        assert bt["informational_findings"] == 0
+
+    def test_telemetry_counts_speculative_risk(self):
+        mesh = make_mesh()
+        mesh.broadcast("AUDIT_COMPLETED", {"critique": {
+            "is_secure": True, "finding_type": "SPECULATIVE_RISK", "confidence": "MEDIUM", "evidence": []
+        }})
+        bt = mesh.shared_context["benchmark_telemetry"]
+        assert bt["verified_exploits"] == 0
+        assert bt["speculative_risks"] == 1
+        assert bt["informational_findings"] == 0
+
+    def test_telemetry_counts_informational(self):
+        mesh = make_mesh()
+        mesh.broadcast("AUDIT_COMPLETED", {"critique": {
+            "is_secure": True, "finding_type": "INFORMATIONAL", "confidence": "LOW", "evidence": []
+        }})
+        bt = mesh.shared_context["benchmark_telemetry"]
+        assert bt["verified_exploits"] == 0
+        assert bt["speculative_risks"] == 0
+        assert bt["informational_findings"] == 1
+
+    def test_telemetry_counts_all_types(self):
+        mesh = make_mesh()
+        mesh.broadcast("AUDIT_COMPLETED", {"critique": {
+            "is_secure": False, "finding_type": "VERIFIED_EXPLOIT", "confidence": "HIGH",
+            "evidence": [{"file": "x.py", "line": 1, "reason": "test"}]
+        }})
+        mesh.broadcast("AUDIT_COMPLETED", {"critique": {
+            "is_secure": True, "finding_type": "SPECULATIVE_RISK", "confidence": "MEDIUM", "evidence": []
+        }})
+        mesh.broadcast("AUDIT_COMPLETED", {"critique": {
+            "is_secure": True, "finding_type": "INFORMATIONAL", "confidence": "LOW", "evidence": []
+        }})
+        bt = mesh.shared_context["benchmark_telemetry"]
+        assert bt["verified_exploits"] == 1
+        assert bt["speculative_risks"] == 1
+        assert bt["informational_findings"] == 1
+
+    def test_final_status_secured_on_convergence(self):
+        mesh = make_mesh()
+        mesh.broadcast("AUDIT_COMPLETED", {"critique": {
+            "is_secure": True, "finding_type": "SPECULATIVE_RISK", "confidence": "MEDIUM", "evidence": []
+        }})
+        assert mesh.shared_context["benchmark_telemetry"]["final_status"] == "SECURED"
+        assert mesh.shared_context["benchmark_telemetry"]["time_completed"] is not None
+
+    def test_final_status_escalation(self):
+        mesh = make_mesh()
+        mesh.shared_context["max_mesh_iterations"] = 1
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        assert mesh.shared_context["benchmark_telemetry"]["final_status"] == "ESCALATION_REQUIRED"
+        assert mesh.shared_context["benchmark_telemetry"]["time_completed"] is not None
+
+    def test_telemetry_has_all_required_fields(self):
+        mesh = make_mesh()
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        mesh.broadcast("PATCH_PROPOSED", {"patch": {"patch_id": "p1"}})
+        mesh.broadcast("AUDIT_COMPLETED", {"critique": {
+            "is_secure": True, "finding_type": "INFORMATIONAL", "confidence": "LOW", "evidence": []
+        }})
+        bt = mesh.shared_context["benchmark_telemetry"]
+        for key in ("blue_model", "red_model", "mesh_iterations", "verified_exploits",
+                    "speculative_risks", "informational_findings", "final_status",
+                    "time_started", "time_completed"):
+            assert key in bt, f"Missing telemetry field: {key}"

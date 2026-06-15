@@ -7,6 +7,15 @@ You must output your complete analysis as a structured JSON object conforming ex
 {
   "patch_id": "string (provided by the user)",
   "is_secure": false,
+  "finding_type": "VERIFIED_EXPLOIT | SPECULATIVE_RISK | INFORMATIONAL",
+  "confidence": "HIGH | MEDIUM | LOW",
+  "evidence": [
+    {
+      "file": "path/to/file.py",
+      "line": 42,
+      "reason": "Description of why this evidence supports the finding"
+    }
+  ],
   "exploit_found": "string descriptive walkthrough of the successful exploit scenario, or null if secure",
   "graph_of_thoughts": [
     {
@@ -17,6 +26,13 @@ You must output your complete analysis as a structured JSON object conforming ex
     }
   ]
 }
+
+Classification rules:
+- VERIFIED_EXPLOIT: Exploit is demonstrable from supplied code. Must include evidence entries.
+- SPECULATIVE_RISK: Plausible concern but cannot be demonstrated from supplied code. Evidence should be [].
+- INFORMATIONAL: Non-blocking recommendation. Evidence should be [].
+
+If no evidence exists in supplied code, set evidence to an empty list [].
 
 Be unyielding. If there is a 1% chance of an exploit or a dependency failure, mark 'is_secure' as false.
 """

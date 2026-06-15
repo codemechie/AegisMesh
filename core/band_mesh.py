@@ -26,7 +26,19 @@ class BandMeshChannel:
             "active_vulnerability": None,
             "exploit_chain": [],
             "event_history": [],
-            "last_event_id": None
+            "last_event_id": None,
+            "benchmark_telemetry": {
+                "blue_model": "Qwen-2.5-Coder-72B",
+                "red_model": "DeepSeek-R1",
+                "mesh_iterations": 0,
+                "verified_exploits": 0,
+                "speculative_risks": 0,
+                "informational_findings": 0,
+                "audit_degradations": 0,
+                "final_status": None,
+                "time_started": None,
+                "time_completed": None
+            }
         }
         # Event subscription registry for full-duplex agent communication
         self._listeners: Dict[str, List[Callable]] = {
@@ -56,6 +68,27 @@ class BandMeshChannel:
         if event_type in self._listeners:
             self._listeners[event_type].append(callback)
 
+    def _update_benchmark_telemetry(self):
+        bt = self.shared_context["benchmark_telemetry"]
+        bt["mesh_iterations"] = self.shared_context["mesh_iteration"]
+
+        counts = {"VERIFIED_EXPLOIT": 0, "SPECULATIVE_RISK": 0, "INFORMATIONAL": 0}
+        for c in self.shared_context["audit_history"]:
+            ft = c.get("finding_type")
+            if ft in counts:
+                counts[ft] += 1
+        bt["verified_exploits"] = counts["VERIFIED_EXPLOIT"]
+        bt["speculative_risks"] = counts["SPECULATIVE_RISK"]
+        bt["informational_findings"] = counts["INFORMATIONAL"]
+        bt["audit_degradations"] = sum(
+            1 for f in self.shared_context.get("agent_failures", [])
+            if f.get("failure_type") == "AUDIT_DEGRADATION"
+        )
+
+        if self.shared_context["status"] in ("SECURED", "ESCALATION_REQUIRED"):
+            bt["final_status"] = bt["final_status"] or self.shared_context["status"]
+            bt["time_completed"] = bt["time_completed"] or datetime.now(timezone.utc).isoformat()
+
     def broadcast(self, event_type: str, payload: dict):
         """Publishes a structured schema update onto the shared agentic layer."""
         self.log_system_event("Mesh Bus", f"Broadcasting {event_type} event payload...")
@@ -73,8 +106,11 @@ class BandMeshChannel:
         # Synchronize central state memory based on the event payload types
         if event_type == "VULNERABILITY_TRIAGED":
             self.shared_context["mesh_iteration"] += 1
+            if self.shared_context["benchmark_telemetry"]["time_started"] is None:
+                self.shared_context["benchmark_telemetry"]["time_started"] = datetime.now(timezone.utc).isoformat()
             if self.shared_context["mesh_iteration"] > self.shared_context["max_mesh_iterations"]:
                 self.shared_context["status"] = "ESCALATION_REQUIRED"
+                self._update_benchmark_telemetry()
                 self.log_system_event("Mesh Bus",
                                       f"ESCALATION_REQUIRED — iteration {self.shared_context['mesh_iteration']} "
                                       f"exceeded max {self.shared_context['max_mesh_iterations']}. "
@@ -95,10 +131,13 @@ class BandMeshChannel:
             self.shared_context["status"] = "AUDITING"
         elif event_type == "AUDIT_COMPLETED":
             self.shared_context["audit_history"].append(payload["critique"])
-            if payload["critique"]["is_secure"]:
-                self.shared_context["status"] = "SECURED"
-            else:
+            ft = payload["critique"]["finding_type"]
+            if ft == "VERIFIED_EXPLOIT":
                 self.shared_context["status"] = "PATCH_REJECTED"
+            else:
+                self.shared_context["status"] = "SECURED"
+
+        self._update_benchmark_telemetry()
 
         # Trigger all registered agent callbacks asynchronously / reactively
         for listener in self._listeners.get(event_type, []):

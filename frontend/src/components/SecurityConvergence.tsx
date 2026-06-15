@@ -26,33 +26,47 @@ const SecurityConvergence: FC<SecurityConvergenceProps> = ({ ctx }) => {
       </h3>
 
       <div className="space-y-2">
-        {ctx.audit_history.map((entry, i) => (
-          <div
-            key={i}
-            className="flex items-center justify-between rounded-lg border px-4 py-3"
-            style={{
-              borderColor: entry.is_secure
-                ? "rgba(22, 163, 74, 0.3)"
-                : "rgba(220, 38, 38, 0.3)",
-              backgroundColor: entry.is_secure
-                ? "rgba(22, 163, 74, 0.08)"
-                : "rgba(220, 38, 38, 0.08)",
-            }}
-          >
-            <span className="text-sm font-medium text-[#f3f4f6]">
-              Iteration {i + 1}
-            </span>
-            <span
-              className={`rounded px-2.5 py-1 text-xs font-semibold ${
-                entry.is_secure
-                  ? "bg-green-900/60 text-green-400"
-                  : "bg-red-900/60 text-red-400"
-              }`}
+        {ctx.audit_history.map((entry, i) => {
+          const ftColor =
+            entry.finding_type === "VERIFIED_EXPLOIT"
+              ? "bg-red-900/60 text-red-400 border-red-900/50"
+              : entry.finding_type === "SPECULATIVE_RISK"
+                ? "bg-yellow-900/60 text-yellow-400 border-yellow-900/50"
+                : "bg-blue-900/60 text-blue-400 border-blue-900/50";
+          const borderColor =
+            entry.finding_type === "VERIFIED_EXPLOIT"
+              ? "rgba(220, 38, 38, 0.3)"
+              : entry.finding_type === "SPECULATIVE_RISK"
+                ? "rgba(234, 179, 8, 0.3)"
+                : "rgba(59, 130, 246, 0.3)";
+          const bgColor =
+            entry.finding_type === "VERIFIED_EXPLOIT"
+              ? "rgba(220, 38, 38, 0.08)"
+              : entry.finding_type === "SPECULATIVE_RISK"
+                ? "rgba(234, 179, 8, 0.08)"
+                : "rgba(59, 130, 246, 0.08)";
+          return (
+            <div
+              key={i}
+              className="flex items-center justify-between rounded-lg border px-4 py-3"
+              style={{ borderColor, backgroundColor: bgColor }}
             >
-              {entry.is_secure ? "Secure" : "Vulnerable"}
-            </span>
-          </div>
-        ))}
+              <span className="text-sm font-medium text-[#f3f4f6]">
+                Iteration {i + 1}
+              </span>
+              <div className="flex items-center gap-2">
+                {entry.evidence.length > 0 && (
+                  <span className="text-xs text-[#9ca3af]">
+                    ({entry.evidence.length} evidence)
+                  </span>
+                )}
+                <span className={`rounded px-2.5 py-1 text-xs font-semibold ${ftColor}`}>
+                  {entry.finding_type}
+                </span>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <div
