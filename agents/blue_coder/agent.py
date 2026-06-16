@@ -4,11 +4,13 @@ from schemas.models import PatchProposal, VulnerabilityReport
 from agents.blue_coder.graph import BlueCoderState
 
 from core.aiml_client import ai_client, extract_json
+from core.model_config import get_blue_model
 
 
 def write_patch_node(state: BlueCoderState) -> dict:
+    model = get_blue_model()
     print(f"\n[Blue Coder] Writing patch iteration {state['iteration_count'] + 1}...", flush=True)
-    print("[Blue Coder] Calling AIMLAPI Qwen3-Coder (may take 30-60s)...", flush=True)
+    print(f"[Blue Coder] Calling {model} (may take 30-60s)...", flush=True)
 
     previous_vuln = state.get("vulnerability", None)
     iter_num = state.get("iteration_count", 0) + 1
@@ -51,7 +53,7 @@ def write_patch_node(state: BlueCoderState) -> dict:
     """
 
     response = ai_client.chat.completions.create(
-        model="alibaba/qwen3-coder-480b-a35b-instruct",
+        model=model,
         messages=[{"role": "user", "content": prompt}],
         max_tokens=1024,
         response_format={

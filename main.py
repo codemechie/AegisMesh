@@ -2,9 +2,11 @@
 
 import uuid
 from core.band_mesh import BandMeshChannel
+from core.model_config import get_blue_model, get_red_model, get_si_model
 from schemas.models import FileContext, VulnerabilityReport, PatchProposal
 from agents.blue_coder.agent import blue_coder_app  # Compiled LangGraph from agent.py
 from agents.red_auditor.engine import execute_adversarial_audit  # Implemented in Phase 2, Step 3
+from agents.security_intelligence.agent import generate_security_report  # Security Intelligence Agent
 
 
 def initialize_blue_coder_service(mesh: BandMeshChannel):
@@ -60,7 +62,7 @@ def initialize_red_auditor_service(mesh: BandMeshChannel):
     def on_patch_submitted(channel: BandMeshChannel, payload: dict):
         # Triggered whenever the Blue Coder posts a patch proposal to the channel
         channel.log_system_event("Red Auditor Service",
-                                 "Intercepted new patch proposal. Executing DeepSeek-R1 GoT analysis...")
+                                 "Intercepted new patch proposal. Executing GoT analysis...")
 
         # Reconstruct the Pydantic classes out of the shared mesh data pool
         patch_obj = PatchProposal.model_validate(payload["patch"])
@@ -98,18 +100,52 @@ def initialize_red_auditor_service(mesh: BandMeshChannel):
     mesh.subscribe("PATCH_PROPOSED", on_patch_submitted)
 
 
+def initialize_security_intelligence_service(mesh: BandMeshChannel):
+    """Hooks the Security Intelligence Agent into the BAND mesh."""
+
+    def on_security_report_requested(channel: BandMeshChannel, payload: dict):
+        channel.log_system_event("Security Intelligence Service",
+                                 "SECURITY_REPORT_REQUESTED received. Generating Security Intelligence Report...")
+
+        report = generate_security_report(channel)
+
+        channel.shared_context["security_report"] = report.model_dump()
+
+        channel.log_system_event("Security Intelligence Service",
+                                 f"Report generated: Score {report.security_score}/100, Risk {report.risk_level}")
+
+        channel.broadcast("SECURITY_REPORT_GENERATED", {"report": report.model_dump()})
+
+    mesh.subscribe("SECURITY_REPORT_REQUESTED", on_security_report_requested)
+
+
 # main.py (Execution block)
 
 if __name__ == "__main__":
     print("Booting Enterprise Adversarial Agentic Mesh...")
 
-    # 1. Initialize a distinct session room inside BAND
+    # 1. Load active models from environment config
+    blue_model = get_blue_model()
+    red_model = get_red_model()
+    si_model = get_si_model()
+
+    print(f"  Blue Coder model:  {blue_model}")
+    print(f"  Red Auditor model: {red_model}")
+    print(f"  SI Agent model:    {si_model}")
+
+    # 2. Initialize a distinct session room inside BAND
     session_id = f"session-{uuid.uuid4()}"
     band_mesh = BandMeshChannel(session_id=session_id)
+    band_mesh.shared_context["active_models"] = {
+        "blue": blue_model,
+        "red": red_model,
+        "security_intelligence": si_model,
+    }
 
     # 2. Start up our asynchronous agent event consumers
     initialize_blue_coder_service(band_mesh)
     initialize_red_auditor_service(band_mesh)
+    initialize_security_intelligence_service(band_mesh)
 
     # 3. Simulate Agent 1 (Routing Triager) dropping an ingested target bug onto the bus
     vulnerable_mock_file = FileContext(

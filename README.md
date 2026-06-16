@@ -7,84 +7,153 @@
 [![LangGraph](https://img.shields.io/badge/LangGraph-✓-brightgreen)](https://langchain-ai.github.io/langgraph/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-**AegisMesh** is an in-process multi-agent system that autonomously patches security vulnerabilities through an adversarial red-team/blue-team feedback loop. Two AI agents — a **Blue Coder** (code generator) and a **Red Auditor** (adversarial security tester) — collaborate over a shared event bus to iteratively produce hardened, exploit-resistant patches. 
+**AegisMesh** is an autonomous adversarial security remediation mesh that generates patches, challenges them through independent red-team analysis, and produces deployment-ready security assessments.
+
+A vulnerability enters the mesh. The **Blue Coder Agent** generates a patch. The **Red Auditor Agent** attempts to break it. The **Security Intelligence Agent** evaluates the result and produces an executive deployment decision. All three agents collaborate over a shared event bus — no human in the loop.
 
 ---
 
-## Demo
+## Why AegisMesh Is Different
 
-![AegisMesh Dashboard](https://via.placeholder.com/800x450?text=AegisMesh+Dashboard+Screenshot)
+Most automated remediation systems follow a single step:
 
-| Panel | What it shows |
-|---|---|
-| **Mesh Health** | Status, iteration count, event count, failure count |
-| **Event Timeline** | Color-coded event stream (red/blue/green dots) |
-| **Exploit Chain** | Original vulnerability → exploit vectors → final status |
-| **Patch Viewer** | Generated patch code in dark code block |
-| **Security Convergence** | Audit iteration progression (Vulnerable → Secure) |
-| **Causal Execution Graph** | React Flow DAG of event lineage |
-| **Agent Failures** | Failure telemetry table (or green "all clear") |
+```
+Generate Patch → Done
+```
+
+AegisMesh implements a full adversarial lifecycle:
+
+```
+Generate Patch
+    ↓
+Attack Patch
+    ↓
+Assess Risk
+    ↓
+Decide Deployment
+```
+
+The difference is architectural: each agent is independently specialized and cannot overrule the others. The Blue Agent cannot approve its own patch. The Red Agent cannot generate a fix. The Security Intelligence Agent holds the final deployment authority. This separation of powers mirrors production security operations.
 
 ---
 
 ## Architecture
 
 ```
-                    ┌──────────────────────────────────────────────┐
-                    │              AegisMesh Channel               │
-                    │  (Pub/Sub Event Bus + Shared State)          │
-                    │                                              │
-                    │  Events: VULNERABILITY_TRIAGED               │
-                    │          PATCH_PROPOSED                      │
-                    │          AUDIT_COMPLETED                     │
-                    └──────┬───────────────────────┬───────────────┘
-                           │                       │
-              subscribes   │                       │  subscribes
-              to:          │                       │  to:
-         VULNERABILITY_TRIAGED              PATCH_PROPOSED
-                           │                       │
-               ┌────────────▼──────────┐  ┌─────────▼──────────────┐
-               │   Blue Coder Agent    │  │   Red Auditor Agent    │
-               │  (Qwen-2.5-Coder)     │  │  (DeepSeek-R1)         │
-               │                      │  │                        │
-               │  LangGraph State-    │  │  Graph-of-Thoughts     │
-               │  Machine:            │  │  Adversarial Audit:    │
-               │  1. patcher_agent    │  │  - Multiple attack     │
-               │  2. compiler_validator│  │    vectors explored    │
-               │  3. routing_evaluator │  │    simultaneously      │
-               │                      │  │  - DAG reasoning tree  │
-               └──────────────────────┘  └────────────────────────┘
-                           │                       │
-                           └──────────┬────────────┘
-                                      │
-                           ┌──────────▼──────────┐
-                           │     FastAPI Layer    │
-                           │   POST /api/run      │
-                           └──────────┬──────────┘
-                                      │
-                           ┌──────────▼──────────┐
-                           │   React Dashboard   │
-                           │  (Vite + Tailwind)  │
-                           └─────────────────────┘
+                     ┌──────────────────────────────────────────────────┐
+                     │               AegisMesh Channel                  │
+                     │   (Pub/Sub Event Bus + Shared State)             │
+                     │                                                  │
+                     │   Events: VULNERABILITY_TRIAGED                  │
+                     │           PATCH_PROPOSED                         │
+                     │           AUDIT_COMPLETED                        │
+                     │           SECURITY_REPORT_REQUESTED              │
+                     │           SECURITY_REPORT_GENERATED              │
+                     └──────┬─────────────────────┬─────────────────────┘
+                            │                     │
+              ┌─────────────▼──────────┐  ┌───────▼──────────────────┐
+              │   Blue Coder Agent     │  │   Red Auditor Agent      │
+              │  (Qwen3-Coder-480B)    │  │  (DeepSeek Chat)         │
+              │                        │  │                          │
+              │  LangGraph State-      │  │  Graph-of-Thoughts       │
+              │  Machine:              │  │  Adversarial Audit:      │
+              │  1. patcher_agent      │  │  Multiple attack vectors │
+              │  2. compiler_validator  │  │  explored simultaneously │
+              │  3. routing_evaluator  │  │  DAG reasoning tree      │
+              └─────────────┬──────────┘  └───────┬──────────────────┘
+                            │                     │
+                            └──────────┬──────────┘
+                                       │
+                            ┌──────────▼──────────┐
+                            │  Security            │
+                            │  Intelligence Agent  │
+                            │  (GPT-4o)            │
+                            │                      │
+                            │  Security scoring    │
+                            │  Risk assessment     │
+                            │  Executive summary   │
+                            │  Deployment decision │
+                            └──────────┬──────────┘
+                                       │
+                            ┌──────────▼──────────┐
+                            │     FastAPI Layer    │
+                            │   POST /api/run      │
+                            └──────────┬──────────┘
+                                       │
+                            ┌──────────▼──────────┐
+                            │   React Dashboard   │
+                            │  (Vite + Tailwind)  │
+                            └─────────────────────┘
 ```
+
+### Agent Roles
+
+| Agent | Model | Role |
+|-------|-------|------|
+| **Blue Coder Agent** | `alibaba/qwen3-coder-480b-a35b-instruct` | Generates code patches with compile verification, up to 3 retry iterations |
+| **Red Auditor Agent** | `deepseek/deepseek-chat` | Adversarially audits patches using Graph-of-Thoughts DAG reasoning |
+| **Security Intelligence Agent** | `openai/gpt-4o` | Produces security score, risk assessment, executive summary, and deployment recommendation |
+
+### Adversarial Loop
+
+```
+VULNERABILITY_TRIAGED
+    ↓
+Blue Coder Agent
+    ↓  PATCH_PROPOSED
+Red Auditor Agent
+    ↓
+  ┌── VERIFIED_EXPLOIT → rebroadcast VULNERABILITY_TRIAGED with exploit vector → retry
+  ├── SPECULATIVE_RISK → recorded, loop ends
+  └── INFORMATIONAL    → recorded, loop ends
+    ↓
+Security Intelligence Agent
+    ↓
+  DEPLOYMENT RECOMMENDATION: APPROVE | APPROVE_WITH_MONITORING | ESCALATION_REQUIRED
+```
+
+Only `VERIFIED_EXPLOIT` continues the remediation loop. `SPECULATIVE_RISK` and `INFORMATIONAL` findings are recorded but do not trigger a new patch cycle. This prevents infinite loops on non-deterministic findings.
 
 ---
 
-## Key Differentiators
+## Security Intelligence Agent
 
-| # | Differentiator | Why it matters |
+The Security Intelligence Agent is the final authority for deployment decisions. After the adversarial loop converges, it evaluates the complete execution context and produces:
+
+| Output | Description |
+|--------|-------------|
+| **Security Score** | 0–100 quantitative security posture score |
+| **Confidence** | 0.0–1.0 confidence in the assessment |
+| **Risk Level** | CRITICAL, HIGH, MEDIUM, or LOW |
+| **Deployment Recommendation** | APPROVE, APPROVE_WITH_MONITORING, ESCALATE_REVIEW, or BLOCK |
+| **Executive Summary** | Narrative summary for non-technical stakeholders |
+| **Reasoning** | List of reasoning steps behind the assessment |
+| **Remaining Risks** | Outstanding security concerns not remediated |
+
+The Security Intelligence Agent is the only agent with authority to issue deployment recommendations. The Blue Agent generates fixes. The Red Agent validates them. The Security Intelligence Agent decides.
+
+### Finding Classification
+
+| Classification | Meaning | Effect |
 |---|---|---|
-| 1 | **Adversarial Feedback Loop** | Blue Coder patches → Red Auditor exploits → rebroadcast → retry. Mirrors real red-team exercises. |
-| 2 | **Event Provenance** | Every broadcast stores `event_id`, `parent_event_id`, `timestamp` — full causal chain. |
-| 3 | **Exploit Chain Tracking** | `original_vulnerability` is frozen on first triage; each exploit vector is appended immutably. |
-| 4 | **Causal Execution Graph** | React Flow visualization renders the event DAG from `parent_event_id` links. |
-| 5 | **Mesh Escalation Guard** | Self-preservation at 8 iterations — prevents runaway agent loops. |
-| 6 | **Callback Isolation** | One failing listener never crashes another; failures recorded in `agent_failures` telemetry. |
-| 7 | **Security Convergence Panel** | Visual red→green progression across audit iterations. |
-| 8 | **Dark SOC Console** | Premium dark-first React design (`#0a0f1a` palette, Tailwind v4, React Flow). |
-| 9 | **Dual UI** | CLI (`main.py`), REST API (`api.py`), and React Dashboard (`frontend/`). |
-| 10 | **Graph-of-Thoughts Auditing** | DAG-based multi-vector adversarial reasoning — explores multiple attack surfaces simultaneously. |
-| 11 | **Mock-first Architecture** | Zero-cost deterministic mode by default; one env var to switch to live LLMs. |
+| **VERIFIED_EXPLOIT** | Demonstrable exploit found in the submitted code | Patch rejected, remediation loop continues |
+| **SPECULATIVE_RISK** | Plausible attack vector, not demonstrable with supplied code | Recorded, loop ends |
+| **INFORMATIONAL** | Non-blocking recommendation or observation | Recorded, loop ends |
+
+A `VERIFIED_EXPLOIT` without supporting evidence is automatically downgraded to `SPECULATIVE_RISK` by the audit schema validator.
+
+### Audit Recovery Pipeline
+
+When the Red Auditor returns malformed JSON (a known failure mode with LLM outputs), the recovery pipeline engages:
+
+```
+Stage 1  →  Normal JSON parsing
+Stage 2  →  Regex-based JSON extraction from markdown
+Stage 3  →  Repair attempt (truncation, quote fixing)
+Stage 4  →  Fallback critique generation
+```
+
+Each recovery stage increments the `audit_degradations` counter. The pipeline prevents mesh deadlocks from single malformed responses. Recovery telemetry is recorded in `agent_failures` with type `AUDIT_DEGRADATION`.
 
 ---
 
@@ -134,7 +203,7 @@ curl -X POST http://localhost:8000/api/run \
   }'
 ```
 
-Returns the full `MeshContext` — event history, exploit chain, audit history, patch, and telemetry.
+Returns the full `MeshContext` — event history, exploit chain, audit history, patch, security report, and telemetry.
 
 ### CLI Mode
 
@@ -150,8 +219,103 @@ Seeds a mock SQL injection vulnerability and runs the full adversarial lifecycle
 USE_REAL_AI_ML_API=TRUE AI_ML_API_KEY=your_key_here python main.py
 ```
 
-- Blue Coder uses `qwen-2.5-coder-72b-instruct`
-- Red Auditor uses `deepseek-r1`
+Model selection is environment-driven. See [Model Configuration](#model-configuration).
+
+---
+
+## Model Configuration
+
+Models are configured through environment variables and centralized in `core/model_config.py`:
+
+| Variable | Default | Agent |
+|---|---|---|
+| `BLUE_MODEL` | `alibaba/qwen3-coder-480b-a35b-instruct` | Blue Coder Agent |
+| `RED_MODEL` | `deepseek/deepseek-chat` | Red Auditor Agent |
+| `SECURITY_INTELLIGENCE_MODEL` | `openai/gpt-4o` | Security Intelligence Agent |
+
+The `core/model_config.py` module provides `get_blue_model()`, `get_red_model()`, and `get_si_model()` accessors used throughout the system. Active model names are included in the API response as `active_models` and rendered in the frontend dashboard.
+
+---
+
+## Benchmark Results
+
+### SQL Injection
+
+```
+Source:     query = f"SELECT * FROM users WHERE id = {user_input}"
+Status:     SECURED
+Score:      100/100
+Risk:       LOW
+Recommend:  APPROVE
+```
+
+### Command Injection
+
+```
+Source:     import os; os.system(f"ping {user_input}")
+Status:     SECURED
+Score:      95/100
+Risk:       LOW
+Recommend:  APPROVE_WITH_MONITORING
+```
+
+### Path Traversal
+
+```
+Source:     open(f"/var/data/{filename}", "r")
+Status:     SECURED
+Score:      85/100
+Risk:       MEDIUM
+Recommend:  APPROVE_WITH_MONITORING
+```
+
+### Telemetry
+
+| Metric | SQL Injection | Command Injection | Path Traversal |
+|--------|---------------|-------------------|----------------|
+| Mesh Iterations | 1 | 2 | 2 |
+| Verified Exploits | 0 | 0 | 0 |
+| Speculative Risks | 1 | 2 | 2 |
+| Informational | 0 | 0 | 0 |
+| Audit Degradations | 0 | 0 | 0 |
+| Latency (mock mode) | ~0.3s | ~0.5s | ~0.5s |
+
+---
+
+## Security Intelligence Dashboard
+
+The React dashboard (Vite + Tailwind v4 + TypeScript) presents mesh execution results in a narrative flow optimized for deployment-decision visibility and demo presentation.
+
+### Panel Order
+
+```
+Security Intelligence Hero Panel
+  ↓  Executive assessment, score, recommendation
+Patch Viewer
+  ↓  Generated code patch with Blue Agent attribution
+Event Timeline
+  ↓  Color-coded event stream with audit findings
+Remediation Story
+  ↓  Vulnerability → Blue → Red → Security Intelligence → Status
+Security Convergence
+  ↓  Audit iteration progression with Red Agent attribution
+Mesh Health
+  ↓  System metrics (status, iterations, events, failures)
+Agent Failures
+  ↓  Failure telemetry (or green "all clear")
+Agent Mesh Execution Flow
+  ↓  Full pipeline visualization with model attribution
+```
+
+### Key Panels
+
+| Panel | Description |
+|-------|-------------|
+| **Security Intelligence Hero** | Decision banner, agent workflow snapshot, security score, executive summary, confidence/risk/recommendation KPIs, findings summary, agent models, reasoning accordion, remaining risks |
+| **Remediation Story** | Narrative 5-step flow: Vulnerability → Blue Agent → Red Agent → Security Intelligence → Final Status |
+| **Agent Mesh Execution Flow** | Vertical pipeline visualization showing each agent's action, model, findings, and the deployment decision |
+| **Patch Viewer** | Generated patch in dark code block with Blue Agent model badge |
+| **Event Timeline** | Reverse-chronological event stream with color-coded audit finding badges |
 
 ---
 
@@ -161,28 +325,34 @@ USE_REAL_AI_ML_API=TRUE AI_ML_API_KEY=your_key_here python main.py
 aegismesh/
 ├── core/
 │   ├── band_mesh.py            # Pub/sub event bus + shared state + provenance
-│   └── aiml_client.py          # LLM client (mock/real switching)
+│   ├── aiml_client.py          # LLM client (mock/real switching)
+│   └── model_config.py         # Centralized model configuration (BLUE_MODEL, RED_MODEL, SECURITY_INTELLIGENCE_MODEL)
 ├── agents/
 │   ├── blue_coder/
 │   │   ├── agent.py            # LangGraph StateGraph definition
 │   │   └── graph.py            # BlueCoderState TypedDict
-│   └── red_auditor/
-│       ├── engine.py           # GoT adversarial audit function
-│       └── prompts.py          # System prompt for DeepSeek-R1
+│   ├── red_auditor/
+│   │   ├── engine.py           # GoT adversarial audit function
+│   │   └── prompts.py          # System prompt for DeepSeek Chat
+│   └── security_intelligence/
+│       ├── agent.py            # Security report generation
+│       └── prompts.py          # Security Intelligence system prompt
 ├── schemas/
-│   ├── models.py               # Pydantic models
-│   └── telemetry.py            # (reserved for telemetry schema)
+│   ├── models.py               # Pydantic models (FileContext, VulnerabilityReport, etc.)
+│   └── security_report.py      # SecurityIntelligenceReport model
 ├── frontend/
 │   ├── src/
 │   │   ├── api/aegismesh.ts    # Typed fetch wrapper
 │   │   ├── types/mesh.ts       # TypeScript MeshContext types
-│   │   ├── components/         # 7 dashboard panels
-│   │   ├── graph/              # React Flow lineage graph
+│   │   ├── components/         # Dashboard panels (10 components)
+│   │   ├── graph/              # Agent Mesh Execution Flow
 │   │   └── pages/Dashboard.tsx # Main dashboard layout
 │   ├── package.json
 │   └── vite.config.ts
 ├── dashboard/
 │   └── app.py                  # Legacy Streamlit dashboard
+├── scripts/
+│   └── model_benchmark.py      # Benchmark runner
 ├── tests/
 │   ├── test_agents.py          # Blue Coder graph tests
 │   ├── test_band_mesh.py       # Mesh reliability + provenance tests
@@ -191,21 +361,6 @@ aegismesh/
 ├── main.py                     # CLI entry point
 └── requirements.txt
 ```
-
----
-
-## Frontend Dashboard Panels
-
-| Panel | File | Description |
-|---|---|---|
-| RunForm | `components/RunForm.tsx` | Source code textarea + vulnerability input + submit |
-| MeshHealth | `components/MeshHealthCard.tsx` | Status, iterations, event/failure counts as metric cards |
-| EventTimeline | `components/EventTimeline.tsx` | Color-coded event stream with dot indicators |
-| ExploitChain | `components/ExploitChain.tsx` | Original vuln → exploit progression → final status |
-| PatchViewer | `components/PatchViewer.tsx` | Generated patch in dark code block |
-| SecurityConvergence | `components/SecurityConvergence.tsx` | Audit iteration red→green progression |
-| AgentFailures | `components/AgentFailures.tsx` | Failure telemetry table |
-| EventLineageGraph | `graph/EventLineageGraph.tsx` | React Flow causal DAG |
 
 ---
 
@@ -227,48 +382,19 @@ aegismesh/
 |---|---|---|
 | `session_id` | `string` | Unique session identifier |
 | `status` | `string` | `INITIALIZED`, `UNDER_REVIEW`, `AUDITING`, `SECURED`, `PATCH_REJECTED`, `ESCALATION_REQUIRED` |
+| `active_models` | `ActiveModels` | Model names for all three agents |
+| `security_report` | `SecurityIntelligenceReport \| null` | Security Intelligence assessment with score, risk, recommendation |
 | `source_file` | `FileContext` | Submitted source file metadata |
 | `vulnerability` | `VulnerabilityReport` | Current vulnerability description |
 | `latest_patch` | `PatchProposal \| null` | Most recent generated patch |
 | `original_vulnerability` | `VulnerabilityReport` | Frozen first-triage vulnerability |
-| `active_vulnerability` | `VulnerabilityReport` | Current (possibly mutated) vulnerability |
 | `exploit_chain` | `ExploitChainEntry[]` | Append-only list of exploit vectors |
 | `audit_history` | `AuditCritique[]` | All audit iterations with GoT reasoning trees |
-| `event_history` | `EventRecord[]` | Full event log with `event_id`, `parent_event_id`, `timestamp` |
-| `last_event_id` | `string \| null` | Pointer to most recent event |
+| `event_history` | `EventRecord[]` | Full event log with event_id, parent_event_id, timestamp |
 | `agent_failures` | `AgentFailure[]` | Isolated listener error telemetry |
-| `system_logs` | `string[]` | Real-time telemetry log |
+| `benchmark_telemetry` | `BenchmarkTelemetry` | Execution metrics (iterations, finding counts, models) |
 | `mesh_iteration` | `number` | Current adversarial loop iteration |
 | `max_mesh_iterations` | `number` | Escalation guard limit (default 8) |
-
----
-
-## How It Works
-
-### Event Bus (`BandMeshChannel`)
-
-The core `core/band_mesh.py` implements a pub/sub event bus with shared mutable state. Agents subscribe to event types and receive callbacks when events are broadcast. The bus provides:
-
-- **Event Provenance** — every broadcast generates a UUID, captures a parent pointer, and timestamps the event
-- **Escalation Guard** — after 8 `VULNERABILITY_TRIAGED` broadcasts, the mesh sets `ESCALATION_REQUIRED` and blocks further dispatch
-- **Callback Isolation** — try/except around each listener so one failure never crashes another; errors recorded in `agent_failures`
-- **Exploit Chain** — the first vulnerability is frozen as `original_vulnerability`; subsequent exploit vectors are appended to `exploit_chain`
-
-### Blue Coder (LangGraph)
-
-A LangGraph state machine with three nodes: `patcher_agent` (LLM generates patch), `compiler_validator` (syntax check), and `routing_evaluator` (retry or finalize). Runs up to 3 compile iterations per invocation.
-
-### Red Auditor (Graph-of-Thoughts)
-
-A DAG-based adversarial reasoning engine that explores multiple attack vectors simultaneously. Each `ThoughtNode` represents one hypothesis; parent links form a reasoning tree. The auditor returns an `AuditCritique` with verdict, exploit vector, and the full GoT tree.
-
-### Adversarial Loop
-
-```
-VULNERABILITY_TRIAGED → Blue Coder → PATCH_PROPOSED → Red Auditor
-  └── if not secure: rebroadcast VULNERABILITY_TRIAGED with exploit vector
-      └── loop until SECURED or ESCALATION_REQUIRED
-```
 
 ---
 
@@ -278,13 +404,13 @@ VULNERABILITY_TRIAGED → Blue Coder → PATCH_PROPOSED → Red Auditor
 python -m pytest tests/ -v
 ```
 
-24 tests across 3 test files:
+34 tests across 3 test files:
 
-| File | Coverage |
-|---|---|
-| `test_agents.py` | Blue Coder LangGraph: compile validation, routing, patch generation |
-| `test_band_mesh.py` | Mesh reliability: iteration counting, escalation guard, callback isolation, event provenance |
-| `test_utils.py` | Markdown code extraction utilities |
+| File | Tests | Coverage |
+|------|-------|----------|
+| `test_agents.py` | 6 | Blue Coder LangGraph: compile validation, routing, patch generation |
+| `test_band_mesh.py` | 24 | Mesh reliability: iteration counting, escalation guard, callback isolation, event provenance, exploit chain tracking |
+| `test_utils.py` | 4 | Markdown code extraction utilities |
 
 ---
 
@@ -302,8 +428,8 @@ python -m pytest tests/ -v
 - **TypeScript** — Type safety
 - **Vite** — Build tool
 - **Tailwind v4** — Styling
-- **React Flow** — Causal execution graph
 - **TanStack Query** — Server state management
+- **Lucide React** — Icon library
 
 ---
 
@@ -311,16 +437,30 @@ python -m pytest tests/ -v
 
 | Decision | Rationale |
 |---|---|
-| **In-process event bus** | Avoids distributed-system complexity; shared `dict` is synchronously mutated for full determinism |
-| **LangGraph for Blue Coder** | State machine with conditional routing enables compile-verify-retry loops trivially |
-| **Graph-of-Thoughts for Red Auditor** | DAG-based reasoning forces exploration of multiple attack surfaces simultaneously |
+| **Three-agent architecture** | Separation of powers: patch generation, adversarial validation, and deployment assessment are independent, mirroring production security operations |
+| **Adversarial feedback loop** | Each rejection includes the exploit vector, making subsequent patches strictly better; only VERIFIED_EXPLOIT continues the loop |
+| **In-process event bus** | Avoids distributed-system complexity; shared dict is synchronously mutated for full determinism |
+| **Security Intelligence as final authority** | Prevents the patch generator from approving its own output; deployment decisions come from an independent assessor |
+| **Graph-of-Thoughts auditing** | DAG-based reasoning forces exploration of multiple attack surfaces simultaneously |
+| **Audit recovery pipeline** | 4-stage fallback prevents mesh deadlocks from malformed LLM responses |
 | **Mock mode by default** | Zero API cost during development; one env var to switch to live models |
-| **Adversarial feedback loop** | Each rejection includes the exploit vector, making subsequent patches strictly better |
 | **Event provenance (UUID + parent pointer)** | Enables full causal graph reconstruction without external storage |
 | **Callback isolation with telemetry** | One failing agent never crashes the mesh; errors are recorded for debugging |
 | **Dark-first React UI** | Premium security operations console aesthetic using Tailwind v4 |
 | **TanStack Query for API state** | Built-in loading/success/error states without a state management library |
 | **Dual UI (CLI + REST + Dashboard)** | Supports local development, API integration, and visual exploration |
+
+---
+
+## Architecture Summary
+
+AegisMesh delivers three capabilities in a single autonomous system:
+
+1. **Autonomous Remediation** — The Blue Coder Agent generates and compiles patches without human intervention, using LangGraph state-machine orchestration with compile verification.
+
+2. **Adversarial Validation** — The Red Auditor Agent independently attacks each patch using Graph-of-Thoughts reasoning, ensuring no single agent can approve its own output.
+
+3. **Deployment Intelligence** — The Security Intelligence Agent evaluates the full execution context and produces a security score, risk assessment, executive summary, and deployment recommendation — the final decision authority.
 
 ---
 

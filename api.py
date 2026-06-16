@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from core.band_mesh import BandMeshChannel
 from schemas.models import FileContext, VulnerabilityReport
-from main import initialize_blue_coder_service, initialize_red_auditor_service
+from main import initialize_blue_coder_service, initialize_red_auditor_service, initialize_security_intelligence_service
 
 app = FastAPI(title="AegisMesh API", version="1.0.0")
 
@@ -28,6 +28,7 @@ def run_mesh(request: RunRequest):
 
     initialize_blue_coder_service(mesh)
     initialize_red_auditor_service(mesh)
+    initialize_security_intelligence_service(mesh)
 
     source_file = FileContext(
         file_path="submitted.py",

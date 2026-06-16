@@ -7,7 +7,7 @@ import streamlit as st
 import uuid
 from core.band_mesh import BandMeshChannel
 from schemas.models import FileContext, VulnerabilityReport
-from main import initialize_blue_coder_service, initialize_red_auditor_service
+from main import initialize_blue_coder_service, initialize_red_auditor_service, initialize_security_intelligence_service
 
 # 1. Page Configuration Config
 st.set_page_config(
@@ -18,7 +18,7 @@ st.set_page_config(
 )
 
 st.title("📡 BAND Mesh: Adversarial Security Patching Network")
-st.caption("Powered by AI/ML API (Qwen-2.5-Coder & DeepSeek-R1) Frameworks")
+st.caption("Powered by AI/ML API Models — configurable via BLUE_MODEL / RED_MODEL / SECURITY_INTELLIGENCE_MODEL env vars")
 
 # 2. Initialize Persistent Session States in Streamlit Browser Cache
 if "mesh" not in st.session_state:
@@ -27,6 +27,7 @@ if "mesh" not in st.session_state:
     # Register our decoupled mesh agents to the current session instance
     initialize_blue_coder_service(st.session_state.mesh)
     initialize_red_auditor_service(st.session_state.mesh)
+    initialize_security_intelligence_service(st.session_state.mesh)
 
 mesh = st.session_state.mesh
 
@@ -109,7 +110,7 @@ with col_left:
         st.info("Benchmark telemetry will display once the mesh executes.")
 
 with col_right:
-    st.subheader("🧠 DeepSeek-R1 Graph of Thoughts (GoT)")
+    st.subheader("🧠 Graph of Thoughts (GoT)")
 
     # Extract the nested audit histories posted onto the mesh by the Red Agent
     history = mesh.shared_context["audit_history"]

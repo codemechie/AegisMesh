@@ -139,8 +139,8 @@ class TestBenchmarkTelemetry:
     def test_telemetry_initializes_with_defaults(self):
         mesh = make_mesh()
         bt = mesh.shared_context["benchmark_telemetry"]
-        assert bt["blue_model"] == "Qwen-2.5-Coder-72B"
-        assert bt["red_model"] == "DeepSeek-R1"
+        assert bt["blue_model"] == "alibaba/qwen3-coder-480b-a35b-instruct"
+        assert bt["red_model"] == "deepseek/deepseek-chat"
         assert bt["mesh_iterations"] == 0
         assert bt["verified_exploits"] == 0
         assert bt["speculative_risks"] == 0

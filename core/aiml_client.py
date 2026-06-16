@@ -24,6 +24,31 @@ class MockCompletions:
 
         elif "deepseek" in model:
             user_prompt = messages[-1]["content"]
+            if "Security Intelligence Report Generation" in user_prompt:
+                mock_report = {
+                    "security_score": 72,
+                    "confidence": 0.85,
+                    "risk_level": "MEDIUM",
+                    "deployment_recommendation": "APPROVE_WITH_MONITORING",
+                    "executive_summary": "The mesh successfully remediated the identified SQL injection vulnerability after two iterations. One verified exploit was found and patched. Residual speculative risks remain but are not demonstrable in the supplied code. Overall security posture is acceptable with continued monitoring.",
+                    "model": "deepseek/deepseek-chat",
+                    "verified_exploits": 1,
+                    "speculative_risks": 1,
+                    "informational_findings": 0,
+                    "audit_degradations": 0,
+                    "reasoning": [
+                        "One verified exploit was remediated by the Blue Coder in iteration 1.",
+                        "Red Auditor confirmed the patch was secure in iteration 2.",
+                        "Residual speculative risk was identified but not demonstrable.",
+                        "Multiple remediation cycles were required before convergence."
+                    ],
+                    "remaining_risks": [
+                        "Speculative risk remains: potential edge case in input sanitization."
+                    ]
+                }
+                return MockResponse(json.dumps(mock_report))
+
+            user_prompt = messages[-1]["content"]
             is_re_evaluation = "PREVIOUS PATCH EXPLOITED" in user_prompt
 
             if not is_re_evaluation:

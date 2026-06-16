@@ -1,6 +1,7 @@
 import json
 from pydantic import ValidationError
 from core.aiml_client import ai_client, extract_json
+from core.model_config import get_red_model
 from schemas.models import PatchProposal, AuditCritique
 from agents.red_auditor.prompts import RED_AUDITOR_SYSTEM_PROMPT
 
@@ -50,7 +51,7 @@ def _repair_json_via_llm(raw_text: str) -> str | None:
     """Stage 3: send raw response to a lightweight JSON repair prompt."""
     try:
         resp = ai_client.chat.completions.create(
-            model="deepseek/deepseek-chat",
+            model=get_red_model(),
             messages=[
                 {"role": "system", "content": JSON_REPAIR_PROMPT},
                 {"role": "user", "content": raw_text}
@@ -92,8 +93,9 @@ def execute_adversarial_audit(
     original_vulnerability: str,
     record_failure: callable = None
 ) -> AuditCritique:
+    model = get_red_model()
     print(f"\n[Red Auditor] Initiating Graph-of-Thoughts exploit analysis for Patch: {patch.patch_id}...", flush=True)
-    print("[Red Auditor] Calling AIMLAPI DeepSeek-V3 (may take 15-30s)...", flush=True)
+    print(f"[Red Auditor] Calling {model} (may take 15-30s)...", flush=True)
 
     user_content = f"""
     Target Patch ID: {patch.patch_id}
@@ -111,7 +113,7 @@ def execute_adversarial_audit(
     """
 
     response = ai_client.chat.completions.create(
-        model="deepseek/deepseek-chat",
+        model=model,
         messages=[
             {"role": "system", "content": RED_AUDITOR_SYSTEM_PROMPT},
             {"role": "user", "content": user_content}

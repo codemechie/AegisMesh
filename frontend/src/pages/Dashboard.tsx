@@ -3,13 +3,14 @@ import type { FC } from "react";
 import { runMesh } from "../api/aegismesh";
 import type { MeshContext } from "../types/mesh";
 import RunForm from "../components/RunForm";
-import MeshHealthCard from "../components/MeshHealthCard";
+import SecurityIntelligenceHero from "../components/SecurityIntelligenceHero";
 import PatchViewer from "../components/PatchViewer";
 import EventTimeline from "../components/EventTimeline";
 import ExploitChain from "../components/ExploitChain";
-import AgentFailures from "../components/AgentFailures";
-import EventLineageGraph from "../graph/EventLineageGraph";
 import SecurityConvergence from "../components/SecurityConvergence";
+import MeshHealthCard from "../components/MeshHealthCard";
+import AgentFailures from "../components/AgentFailures";
+import AgentMeshFlow from "../graph/AgentMeshFlow";
 
 const STATUS_BADGE: Record<string, string> = {
   SECURED: "bg-green-900/60 text-green-400 border-green-700",
@@ -62,23 +63,24 @@ const Dashboard: FC = () => {
         </div>
       )}
 
+      <SecurityIntelligenceHero ctx={data} />
+
+      <PatchViewer ctx={data ?? null} />
+
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <div className="space-y-6">
-          <MeshHealthCard ctx={data ?? null} />
-          <SecurityConvergence ctx={data} />
-        </div>
         <EventTimeline ctx={data} />
+        <ExploitChain ctx={data} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <PatchViewer ctx={data ?? null} />
-        <ExploitChain ctx={data} />
+        <SecurityConvergence ctx={data} />
+        <MeshHealthCard ctx={data ?? null} />
       </div>
 
       <AgentFailures ctx={data} />
 
       <section>
-        <EventLineageGraph ctx={data} />
+        <AgentMeshFlow ctx={data} />
       </section>
     </div>
   );

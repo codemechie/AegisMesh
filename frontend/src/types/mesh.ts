@@ -74,6 +74,27 @@ export interface BenchmarkTelemetry {
   time_completed: string | null;
 }
 
+export interface SecurityIntelligenceReport {
+  security_score: number;
+  confidence: number;
+  risk_level: string;
+  deployment_recommendation: string;
+  executive_summary: string;
+  model?: string;
+  verified_exploits: number;
+  speculative_risks: number;
+  informational_findings: number;
+  audit_degradations: number;
+  reasoning: string[];
+  remaining_risks: string[];
+}
+
+export interface ActiveModels {
+  blue: string;
+  red: string;
+  security_intelligence: string;
+}
+
 export interface MeshContext {
   session_id: string;
   status: string;
@@ -82,6 +103,7 @@ export interface MeshContext {
   latest_patch: PatchProposal | null;
   original_vulnerability: VulnerabilityReport;
   active_vulnerability: VulnerabilityReport;
+  active_models: ActiveModels;
   audit_history: AuditCritique[];
   system_logs: string[];
   mesh_iteration: number;
@@ -91,6 +113,7 @@ export interface MeshContext {
   last_event_id: string | null;
   agent_failures: AgentFailure[];
   benchmark_telemetry: BenchmarkTelemetry;
+  security_report?: SecurityIntelligenceReport;
 }
 
 export interface RunRequest {

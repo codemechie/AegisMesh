@@ -17,6 +17,12 @@ const TEXT_COLORS: Record<string, string> = {
   AUDIT_COMPLETED: "text-green-400",
 };
 
+const FT_BADGE: Record<string, string> = {
+  VERIFIED_EXPLOIT: "bg-red-900/70 text-red-300",
+  SPECULATIVE_RISK: "bg-yellow-900/70 text-yellow-300",
+  INFORMATIONAL: "bg-blue-900/70 text-blue-300",
+};
+
 function formatTime(iso: string): string {
   try {
     const d = new Date(iso);
@@ -61,6 +67,19 @@ const EventTimeline: FC<EventTimelineProps> = ({ ctx }) => {
             >
               {ev.event_type}
             </span>
+            {ev.event_type === "AUDIT_COMPLETED" && (
+              (() => {
+                const c = (ev.payload as Record<string, unknown>)?.critique as Record<string, unknown> | undefined;
+                const ft = c?.finding_type as string | undefined;
+                const conf = c?.confidence as string | undefined;
+                const badgeClass = FT_BADGE[ft ?? ""] ?? "bg-gray-900/70 text-gray-300";
+                return (
+                  <span className={`ml-auto rounded px-2 py-0.5 text-xs font-semibold ${badgeClass}`}>
+                    {ft ?? "UNKNOWN"} {conf ?? ""}
+                  </span>
+                );
+              })()
+            )}
           </div>
         ))}
       </div>

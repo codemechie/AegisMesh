@@ -3,8 +3,8 @@ from typing import Optional
 
 
 class BenchmarkTelemetry(BaseModel):
-    blue_model: str = Field(default="Qwen-2.5-Coder-72B", description="The model used by Blue Coder")
-    red_model: str = Field(default="DeepSeek-R1", description="The model used by Red Auditor")
+    blue_model: str = Field(default="alibaba/qwen3-coder-480b-a35b-instruct", description="The model used by Blue Coder")
+    red_model: str = Field(default="deepseek/deepseek-chat", description="The model used by Red Auditor")
     mesh_iterations: int = Field(default=0, description="Number of mesh iterations")
     verified_exploits: int = Field(default=0, description="Count of VERIFIED_EXPLOIT findings")
     speculative_risks: int = Field(default=0, description="Count of SPECULATIVE_RISK findings")

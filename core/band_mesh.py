@@ -11,8 +11,14 @@ class BandMeshChannel:
     def __init__(self, session_id: str):
         self.session_id = session_id
         # Shared telemetry state visible to all authenticated agents on the mesh
+        from core.model_config import get_blue_model, get_red_model, get_si_model
         self.shared_context: Dict = {
             "session_id": session_id,
+            "active_models": {
+                "blue": get_blue_model(),
+                "red": get_red_model(),
+                "security_intelligence": get_si_model(),
+            },
             "status": "INITIALIZED",
             "source_file": None,
             "vulnerability": None,
@@ -28,8 +34,8 @@ class BandMeshChannel:
             "event_history": [],
             "last_event_id": None,
             "benchmark_telemetry": {
-                "blue_model": "Qwen-2.5-Coder-72B",
-                "red_model": "DeepSeek-R1",
+                "blue_model": "alibaba/qwen3-coder-480b-a35b-instruct",
+                "red_model": "deepseek/deepseek-chat",
                 "mesh_iterations": 0,
                 "verified_exploits": 0,
                 "speculative_risks": 0,
@@ -44,7 +50,9 @@ class BandMeshChannel:
         self._listeners: Dict[str, List[Callable]] = {
             "VULNERABILITY_TRIAGED": [],
             "PATCH_PROPOSED": [],
-            "AUDIT_COMPLETED": []
+            "AUDIT_COMPLETED": [],
+            "SECURITY_REPORT_REQUESTED": [],
+            "SECURITY_REPORT_GENERATED": []
         }
 
     def log_system_event(self, agent_name: str, message: str):
@@ -89,8 +97,25 @@ class BandMeshChannel:
             bt["final_status"] = bt["final_status"] or self.shared_context["status"]
             bt["time_completed"] = bt["time_completed"] or datetime.now(timezone.utc).isoformat()
 
+    def _validate_active_models(self):
+        am = self.shared_context.get("active_models", {})
+        required = {"blue", "red", "security_intelligence"}
+        missing = required - set(am.keys())
+        empty = [k for k in required if k in am and not am[k]]
+        if missing or empty:
+            msg = []
+            if missing:
+                msg.append(f"Missing model keys: {missing}")
+            if empty:
+                msg.append(f"Empty model values: {empty}")
+            raise RuntimeError(f"Active model validation failed: {'; '.join(msg)}. "
+                               "Set BLUE_MODEL, RED_MODEL, SECURITY_INTELLIGENCE_MODEL env vars.")
+        self.log_system_event("Mesh Bus", f"Active models validated: blue={am['blue']}, red={am['red']}, security_intelligence={am['security_intelligence']}")
+
     def broadcast(self, event_type: str, payload: dict):
         """Publishes a structured schema update onto the shared agentic layer."""
+        if event_type == "VULNERABILITY_TRIAGED" and self.shared_context["mesh_iteration"] == 0:
+            self._validate_active_models()
         self.log_system_event("Mesh Bus", f"Broadcasting {event_type} event payload...")
         event_id = str(uuid.uuid4())
         parent_event_id = self.shared_context["last_event_id"]
@@ -136,6 +161,12 @@ class BandMeshChannel:
                 self.shared_context["status"] = "PATCH_REJECTED"
             else:
                 self.shared_context["status"] = "SECURED"
+                self.broadcast("SECURITY_REPORT_REQUESTED", {
+                    "triggered_by": "AUDIT_COMPLETED",
+                    "convergence_status": "SECURED",
+                    "mesh_iteration": self.shared_context["mesh_iteration"],
+                    "source_audit": payload["critique"]
+                })
 
         self._update_benchmark_telemetry()
 
