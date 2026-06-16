@@ -7,6 +7,7 @@ from schemas.models import FileContext, VulnerabilityReport, PatchProposal
 from agents.blue_coder.agent import blue_coder_app  # Compiled LangGraph from agent.py
 from agents.red_auditor.engine import execute_adversarial_audit  # Implemented in Phase 2, Step 3
 from agents.security_intelligence.agent import generate_security_report  # Security Intelligence Agent
+from integrations.band import setup_band_mirror
 
 
 def initialize_blue_coder_service(mesh: BandMeshChannel):
@@ -142,7 +143,11 @@ if __name__ == "__main__":
         "security_intelligence": si_model,
     }
 
-    # 2. Start up our asynchronous agent event consumers
+    # 2a. Register BAND event mirror (before agent services so room
+    #     is created before the first event triggers callbacks)
+    band_mirror = setup_band_mirror(band_mesh)
+
+    # 2b. Start up our asynchronous agent event consumers
     initialize_blue_coder_service(band_mesh)
     initialize_red_auditor_service(band_mesh)
     initialize_security_intelligence_service(band_mesh)
@@ -165,3 +170,8 @@ if __name__ == "__main__":
         "source_file": vulnerable_mock_file.model_dump(),
         "vulnerability": detected_vulnerability.model_dump()
     })
+
+    # Mirror terminal status (SECURED / ESCALATION_REQUIRED) if not
+    # already handled by the event mirror callbacks.
+    if band_mirror is not None:
+        band_mirror.maybe_mirror_terminal_status(band_mesh.shared_context)

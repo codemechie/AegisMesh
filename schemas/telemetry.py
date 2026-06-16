@@ -13,3 +13,11 @@ class BenchmarkTelemetry(BaseModel):
     final_status: Optional[str] = Field(None, description="Final mesh status after run completion")
     time_started: Optional[str] = Field(None, description="ISO 8601 timestamp when the run started")
     time_completed: Optional[str] = Field(None, description="ISO 8601 timestamp when the run completed")
+
+
+class BandTelemetry(BaseModel):
+    band_room_created: int = Field(default=0, description="1 if a BAND room was created for this session")
+    band_messages_sent: int = Field(default=0, description="Number of events mirrored to BAND")
+    band_failures: int = Field(default=0, description="Number of BAND mirror failures")
+    band_room_id: Optional[str] = Field(None, description="BAND room ID for this session")
+    band_room_url: Optional[str] = Field(None, description="BAND dashboard URL for this session")

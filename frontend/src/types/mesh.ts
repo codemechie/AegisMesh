@@ -74,6 +74,14 @@ export interface BenchmarkTelemetry {
   time_completed: string | null;
 }
 
+export interface BandTelemetry {
+  band_room_created: number;
+  band_messages_sent: number;
+  band_failures: number;
+  band_room_id: string | null;
+  band_room_url: string | null;
+}
+
 export interface SecurityIntelligenceReport {
   security_score: number;
   confidence: number;
@@ -114,6 +122,9 @@ export interface MeshContext {
   agent_failures: AgentFailure[];
   benchmark_telemetry: BenchmarkTelemetry;
   security_report?: SecurityIntelligenceReport;
+  band_room_id?: string | null;
+  band_room_url?: string | null;
+  band_telemetry?: BandTelemetry;
 }
 
 export interface RunRequest {

@@ -233,7 +233,79 @@ const SecurityIntelligenceHero: FC<SecurityIntelligenceHeroProps> = ({ ctx }) =>
           </span>
         </div>
 
-        {/* 5. Executive Summary */}
+        {/* 5. Agent Models */}
+        {models && (
+          <div>
+            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#9ca3af]">
+              Agent Models
+            </h4>
+            <div className="grid grid-cols-3 gap-3">
+              {(["blue", "red", "security_intelligence"] as const).map((key) => (
+                <div
+                  key={key}
+                  className={`rounded-lg border bg-[#0a0f1a] p-3 ${modelColors[key].split(" ")[0]}`}
+                >
+                  <div className="text-xs font-medium uppercase tracking-wider text-[#6b7280]">
+                    {modelLabels[key]}
+                  </div>
+                  <div className="mt-1 truncate text-sm font-medium text-[#f3f4f6]">
+                    {models[key]}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 6. BAND Agent Collaboration */}
+        <div className="rounded-lg border border-[#1f2937] bg-[#111827] p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span
+                className={`inline-block h-2 w-2 rounded-full ${ctx?.band_room_url ? "bg-[#22c55e]" : "bg-[#4b5563]"}`}
+              />
+              <span className="text-xs font-semibold uppercase tracking-wider text-[#9ca3af]">
+                BAND Agent Collaboration
+              </span>
+            </div>
+            {ctx?.band_room_url && (
+              <a
+                href={ctx.band_room_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[#22c55e]/30 bg-[#22c55e]/10 px-3 py-1 text-xs font-semibold text-[#22c55e] transition-colors hover:bg-[#22c55e]/20"
+              >
+                View BAND Transcript &rarr;
+              </a>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#6b7280]">
+            {ctx?.band_room_id && (
+              <span className="font-mono">
+                Room: {ctx.band_room_id.length > 16
+                  ? ctx.band_room_id.slice(0, 16) + "..."
+                  : ctx.band_room_id}
+              </span>
+            )}
+            {ctx?.band_telemetry && (
+              <>
+                <span>
+                  Messages mirrored: {ctx.band_telemetry.band_messages_sent}
+                </span>
+                {ctx.band_telemetry.band_failures > 0 && (
+                  <span className="text-[#ef4444]">
+                    Failures: {ctx.band_telemetry.band_failures}
+                  </span>
+                )}
+              </>
+            )}
+            {!ctx?.band_room_url && (
+              <span className="italic text-[#4b5563]">No BAND room available</span>
+            )}
+          </div>
+        </div>
+
+        {/* 7. Executive Summary */}
         <div className="rounded-lg border border-purple-900/30 bg-[#0a0f1a] p-3">
           <div className="mb-1 flex items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-[#9ca3af]">
@@ -248,7 +320,7 @@ const SecurityIntelligenceHero: FC<SecurityIntelligenceHeroProps> = ({ ctx }) =>
           </p>
         </div>
 
-        {/* 6. Confidence / Risk / Recommendation */}
+        {/* 8. Confidence / Risk / Recommendation */}
         <div className="grid grid-cols-3 gap-4">
           <div className="rounded-lg border border-[#1f2937] bg-[#0a0f1a] p-3">
             <div className="text-xs font-medium uppercase tracking-wider text-[#9ca3af]">
@@ -296,31 +368,7 @@ const SecurityIntelligenceHero: FC<SecurityIntelligenceHeroProps> = ({ ctx }) =>
           </div>
         </div>
 
-        {/* 7. Agent Models */}
-        {models && (
-          <div>
-            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#9ca3af]">
-              Agent Models
-            </h4>
-            <div className="grid grid-cols-3 gap-3">
-              {(["blue", "red", "security_intelligence"] as const).map((key) => (
-                <div
-                  key={key}
-                  className={`rounded-lg border bg-[#0a0f1a] p-3 ${modelColors[key].split(" ")[0]}`}
-                >
-                  <div className="text-xs font-medium uppercase tracking-wider text-[#6b7280]">
-                    {modelLabels[key]}
-                  </div>
-                  <div className="mt-1 truncate text-sm font-medium text-[#f3f4f6]">
-                    {models[key]}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 8. Findings Summary */}
+        {/* 9. Findings Summary */}
         <div>
           <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#9ca3af]">
             Findings Summary
@@ -361,7 +409,7 @@ const SecurityIntelligenceHero: FC<SecurityIntelligenceHeroProps> = ({ ctx }) =>
           </div>
         </div>
 
-        {/* 9. Security Intelligence Reasoning */}
+        {/* 10. Security Intelligence Reasoning */}
         {report.reasoning.length > 0 && (
           <div className="rounded-lg border border-[#1f2937]">
             <button
@@ -401,7 +449,7 @@ const SecurityIntelligenceHero: FC<SecurityIntelligenceHeroProps> = ({ ctx }) =>
           </div>
         )}
 
-        {/* 10. Remaining Risks */}
+        {/* 11. Remaining Risks */}
         <div>
           <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#9ca3af]">
             Remaining Risks
