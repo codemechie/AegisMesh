@@ -46,7 +46,7 @@ const FooterSectionContent: FC = () => (
           <h4 className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#4b5563]">Technology</h4>
           <ul className="mt-4 space-y-2.5">
             <li>
-              <span className="text-xs text-[#9ca3af]">BAND of Agents</span>
+              <span className="text-xs text-[#9ca3af]">BAND</span>
             </li>
             <li>
               <span className="text-xs text-[#9ca3af]">OpenRouter</span>
@@ -86,7 +86,7 @@ const FooterSectionContent: FC = () => (
             &copy; 2026 AegisMesh. Multi-Agent Security Remediation System.
           </p>
           <p className="text-[10px] text-[#4b5563]">
-            Powered by <span className="text-[#22c55e]">BAND of Agents</span>
+            Powered by <span className="text-[#22c55e]">BAND</span>
           </p>
         </div>
       </div>

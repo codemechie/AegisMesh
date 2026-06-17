@@ -175,7 +175,7 @@ export const TECH_CATEGORIES = [
   },
   {
     title: "Agent Orchestration",
-    items: ["Band of Agents", "OpenRouter"],
+    items: ["BAND", "OpenRouter"],
     description: "Event-driven multi-agent coordination with standardized model routing.",
     border: "border-blue-900/40",
     bg: "bg-blue-900/10",
