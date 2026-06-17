@@ -1,4 +1,5 @@
 import { useState, type FC } from "react";
+import { useNavigate } from "react-router-dom";
 import type { MeshContext } from "../types/mesh";
 
 interface SecurityIntelligenceHeroProps {
@@ -84,6 +85,7 @@ const AgentBadge: FC<{ agent: "blue" | "red" | "security_intelligence"; model: s
 );
 
 const SecurityIntelligenceHero: FC<SecurityIntelligenceHeroProps> = ({ ctx }) => {
+  const navigate = useNavigate();
   const [reasoningOpen, setReasoningOpen] = useState(false);
   const report = ctx?.security_report;
   const models = ctx?.active_models;
@@ -262,21 +264,20 @@ const SecurityIntelligenceHero: FC<SecurityIntelligenceHeroProps> = ({ ctx }) =>
           <div className="mb-2 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span
-                className={`inline-block h-2 w-2 rounded-full ${ctx?.band_room_url ? "bg-[#22c55e]" : "bg-[#4b5563]"}`}
+                className={`inline-block h-2 w-2 rounded-full ${ctx?.session_id ? "bg-[#22c55e]" : "bg-[#4b5563]"}`}
               />
               <span className="text-xs font-semibold uppercase tracking-wider text-[#9ca3af]">
                 BAND Agent Collaboration
               </span>
             </div>
-            {ctx?.band_room_url && (
-              <a
-                href={ctx.band_room_url}
-                target="_blank"
-                rel="noopener noreferrer"
+            {ctx?.session_id && (
+              <button
+                type="button"
+                onClick={() => navigate(`/transcript/${ctx.session_id}`)}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-[#22c55e]/30 bg-[#22c55e]/10 px-3 py-1 text-xs font-semibold text-[#22c55e] transition-colors hover:bg-[#22c55e]/20"
               >
                 View BAND Transcript &rarr;
-              </a>
+              </button>
             )}
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#6b7280]">
@@ -299,8 +300,8 @@ const SecurityIntelligenceHero: FC<SecurityIntelligenceHeroProps> = ({ ctx }) =>
                 )}
               </>
             )}
-            {!ctx?.band_room_url && (
-              <span className="italic text-[#4b5563]">No BAND room available</span>
+            {!ctx?.session_id && (
+              <span className="italic text-[#4b5563]">No session data available</span>
             )}
           </div>
         </div>

@@ -1,7 +1,9 @@
 import { useMutation } from "@tanstack/react-query";
+import { useEffect } from "react";
 import type { FC } from "react";
 import { runMesh } from "../api/aegismesh";
 import type { MeshContext } from "../types/mesh";
+import { useMeshData } from "../context/MeshDataContext";
 import RunForm from "../components/RunForm";
 import SecurityIntelligenceHero from "../components/SecurityIntelligenceHero";
 import PatchViewer from "../components/PatchViewer";
@@ -28,6 +30,14 @@ const Dashboard: FC = () => {
     mutationFn: ({ sourceCode, vulnerability }) =>
       runMesh({ source_code: sourceCode, vulnerability }),
   });
+
+  const { setData } = useMeshData();
+
+  useEffect(() => {
+    if (data) {
+      setData(data);
+    }
+  }, [data, setData]);
 
   const handleRun = (sourceCode: string, vulnerability: string) => {
     mutate({ sourceCode, vulnerability });
