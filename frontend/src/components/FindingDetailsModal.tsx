@@ -52,6 +52,37 @@ interface FindingDetailsModalProps {
   totalIterations?: number;
 }
 
+function getDescription(c: AuditCritique): string {
+  if (c.exploit_found) return c.exploit_found;
+
+  const thoughts = c.graph_of_thoughts ?? [];
+  if (thoughts.length > 0) {
+    return thoughts
+      .map((t) => t.hypothesis)
+      .filter(Boolean)
+      .join("\n\n");
+  }
+
+  const evidence = c.evidence ?? [];
+  if (evidence.length > 0) {
+    return evidence
+      .map((e) => e.reason)
+      .filter(Boolean)
+      .join("\n\n");
+  }
+
+  return "";
+}
+
+const FALLBACK_DESCRIPTION: Record<string, string> = {
+  VERIFIED_EXPLOIT:
+    "Auditor confirmed an exploitable vulnerability but did not provide structured reasoning.",
+  SPECULATIVE_RISK:
+    "Auditor identified a potential risk but did not provide structured reasoning.",
+  INFORMATIONAL:
+    "Auditor provided an informational observation.",
+};
+
 const FindingDetailsModal: FC<FindingDetailsModalProps> = ({
   findings,
   filteredType,
@@ -233,14 +264,17 @@ const FindingDetailsModal: FC<FindingDetailsModalProps> = ({
               </span>
             </div>
 
-            {/* Description / exploit_found */}
+            {/* Description */}
             <div>
               <h4 className="mb-1 text-xs font-semibold uppercase tracking-wider text-[#9ca3af]">
                 Description
               </h4>
               <div className="rounded-lg border border-[#1f2937] bg-[#0a0f1a] px-3 py-2">
-                <p className="text-sm leading-relaxed text-[#d1d5db]">
-                  {current.exploit_found ?? "No description provided."}
+                <p className="text-sm leading-relaxed text-[#d1d5db] whitespace-pre-line">
+                  {(() => {
+                    const desc = getDescription(current);
+                    return desc || (FALLBACK_DESCRIPTION[current.finding_type] ?? "Finding recorded.");
+                  })()}
                 </p>
               </div>
             </div>
