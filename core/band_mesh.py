@@ -41,6 +41,8 @@ class BandMeshChannel:
                 "speculative_risks": 0,
                 "informational_findings": 0,
                 "audit_degradations": 0,
+                "invalid_evidence_count": 0,
+                "evidence_downgrades": 0,
                 "final_status": None,
                 "time_started": None,
                 "time_completed": None
@@ -92,6 +94,8 @@ class BandMeshChannel:
             1 for f in self.shared_context.get("agent_failures", [])
             if f.get("failure_type") == "AUDIT_DEGRADATION"
         )
+        bt["invalid_evidence_count"] = self.shared_context.get("invalid_evidence_count", 0)
+        bt["evidence_downgrades"] = self.shared_context.get("evidence_downgrades", 0)
 
         if self.shared_context["status"] in ("SECURED", "ESCALATION_REQUIRED"):
             bt["final_status"] = bt["final_status"] or self.shared_context["status"]
@@ -139,17 +143,32 @@ class BandMeshChannel:
                 self.log_system_event("Mesh Bus",
                                       f"ESCALATION_REQUIRED — iteration {self.shared_context['mesh_iteration']} "
                                       f"exceeded max {self.shared_context['max_mesh_iterations']}. "
-                                      f"Iteration guard engaged. Blocking further dispatch.")
+                                      f"Iteration guard engaged. Requesting Security Intelligence report.")
+                self.broadcast("SECURITY_REPORT_REQUESTED", {
+                    "triggered_by": "ESCALATION_GUARD",
+                    "convergence_status": "ESCALATION_REQUIRED",
+                    "mesh_iteration": self.shared_context["mesh_iteration"],
+                    "max_mesh_iterations": self.shared_context["max_mesh_iterations"],
+                    "source_audit": None
+                })
                 return
+            # Never mutate original vulnerability — track re-iterations via exploit_context
+            if self.shared_context["original_vulnerability"] is not None:
+                exploit_ctx = payload.get("exploit_context")
+                if exploit_ctx:
+                    exploit_entry = {
+                        "description": exploit_ctx.get("message", "Previous patch exploited"),
+                        "severity": exploit_ctx.get("severity", "CRITICAL"),
+                        "exploit_found": exploit_ctx.get("exploit_found"),
+                        "iteration": exploit_ctx.get("iteration", self.shared_context["mesh_iteration"])
+                    }
+                    self.shared_context["exploit_chain"].append(exploit_entry)
             incoming = payload["vulnerability"]
-            if self.shared_context["original_vulnerability"] is not None and incoming != self.shared_context["original_vulnerability"]:
-                if not self.shared_context["exploit_chain"] or self.shared_context["exploit_chain"][-1] != incoming:
-                    self.shared_context["exploit_chain"].append(incoming)
-            self.shared_context["source_file"] = payload["source_file"]
-            self.shared_context["vulnerability"] = incoming
-            self.shared_context["active_vulnerability"] = incoming
             if self.shared_context["original_vulnerability"] is None:
                 self.shared_context["original_vulnerability"] = incoming
+                self.shared_context["vulnerability"] = incoming
+                self.shared_context["active_vulnerability"] = incoming
+            self.shared_context["source_file"] = payload["source_file"]
             self.shared_context["status"] = "UNDER_REVIEW"
         elif event_type == "PATCH_PROPOSED":
             self.shared_context["latest_patch"] = payload["patch"]

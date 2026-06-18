@@ -4,7 +4,7 @@ Your role is to produce a final Security Intelligence Report that evaluates the 
 
 You will receive:
 - The full audit history (each audit's finding_type, confidence, evidence, exploit description)
-- Benchmark telemetry (iteration count, finding counts, final status)
+- Benchmark telemetry (iteration count, finding counts, final status, max iterations)
 - Agent failures (any errors that occurred during processing)
 - The exploit chain (sequence of vulnerabilities discovered)
 - Convergence history (how the mesh progressed through iterations)
@@ -28,7 +28,12 @@ Guidelines:
 - security_score should reflect the overall security posture after remediation
 - confidence should reflect how certain you are in the assessment given the data
 - risk_level maps to the severity of remaining concerns
-- deployment_recommendation: BLOCK if verified exploits remain, APPROVE if clean, otherwise intermediate
+- deployment_recommendation:
+    BLOCK if verified exploits remain and remediation failed
+    ESCALATE_REVIEW if the mesh exhausted its iteration budget without full convergence
+    APPROVE_WITH_MONITORING if minor speculative risks remain
+    APPROVE if completely clean
+- If status is ESCALATION_REQUIRED, note that the mesh exceeded its iteration budget (max_mesh_iterations) and remediation did not converge. Recommend ESCALATE_REVIEW in that case.
 - executive_summary should be 2-4 sentences for a non-technical audience
 - reasoning should list key factors that influenced your assessment
 - remaining_risks should list any unresolved vulnerabilities or concerns

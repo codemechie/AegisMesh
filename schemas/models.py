@@ -1,6 +1,6 @@
 import warnings
 from pydantic import BaseModel, Field, model_validator
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Tuple
 
 class FileContext(BaseModel):
     file_path: str = Field(..., description="The path of the file inside the repo")
@@ -48,3 +48,42 @@ class AuditCritique(BaseModel):
             )
             self.finding_type = "SPECULATIVE_RISK"
         return self
+
+    def validate_evidence(self, source_code: str, source_file_path: str) -> Tuple[int, bool]:
+        line_count = len(source_code.splitlines())
+        valid_evidence = []
+        invalid_count = 0
+
+        for ev in self.evidence:
+            if ev.file != source_file_path:
+                invalid_count += 1
+                continue
+            if ev.line < 1:
+                invalid_count += 1
+                continue
+            if ev.line > line_count:
+                invalid_count += 1
+                continue
+            valid_evidence.append(ev)
+
+        downgraded = False
+        if invalid_count > 0 or len(valid_evidence) != len(self.evidence):
+            removed_count = len(self.evidence) - len(valid_evidence)
+            self.evidence = valid_evidence
+
+            if self.finding_type == "VERIFIED_EXPLOIT" and not self.evidence:
+                warnings.warn(
+                    f"Downgrading VERIFIED_EXPLOIT to SPECULATIVE_RISK for patch {self.patch_id}: "
+                    f"all {removed_count} evidence items were invalid (source file has {line_count} lines, "
+                    f"expected file path '{source_file_path}')"
+                )
+                self.finding_type = "SPECULATIVE_RISK"
+                downgraded = True
+            elif removed_count > 0:
+                warnings.warn(
+                    f"Removed {removed_count} invalid evidence item(s) from patch {self.patch_id}: "
+                    f"{invalid_count} failed validation against source file '{source_file_path}' "
+                    f"(file has {line_count} lines)"
+                )
+
+        return invalid_count, downgraded

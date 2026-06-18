@@ -223,6 +223,55 @@ class TestBenchmarkTelemetry:
         assert mesh.shared_context["benchmark_telemetry"]["final_status"] == "ESCALATION_REQUIRED"
         assert mesh.shared_context["benchmark_telemetry"]["time_completed"] is not None
 
+    def test_escalation_triggers_security_report_request(self):
+        mesh = make_mesh()
+        mesh.shared_context["max_mesh_iterations"] = 1
+        si_invoked = []
+        def si_listener(channel, payload):
+            si_invoked.append(payload)
+        mesh.subscribe("SECURITY_REPORT_REQUESTED", si_listener)
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        assert len(si_invoked) == 1
+        assert si_invoked[0]["triggered_by"] == "ESCALATION_GUARD"
+        assert si_invoked[0]["convergence_status"] == "ESCALATION_REQUIRED"
+
+    def test_escalation_report_request_in_event_history(self):
+        mesh = make_mesh()
+        mesh.shared_context["max_mesh_iterations"] = 1
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        events = [e for e in mesh.shared_context["event_history"]
+                  if e["event_type"] == "SECURITY_REPORT_REQUESTED"]
+        assert len(events) == 1
+        assert events[0]["payload"]["triggered_by"] == "ESCALATION_GUARD"
+
+    def test_escalation_report_has_iteration_context(self):
+        mesh = make_mesh()
+        mesh.shared_context["max_mesh_iterations"] = 3
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        events = [e for e in mesh.shared_context["event_history"]
+                  if e["event_type"] == "SECURITY_REPORT_REQUESTED"]
+        assert len(events) == 1
+        assert events[0]["payload"]["mesh_iteration"] == 4
+        assert events[0]["payload"]["max_mesh_iterations"] == 3
+
+    def test_convergence_still_triggers_security_report(self):
+        mesh = make_mesh()
+        si_invoked = []
+        def si_listener(channel, payload):
+            si_invoked.append(payload)
+        mesh.subscribe("SECURITY_REPORT_REQUESTED", si_listener)
+        mesh.broadcast("AUDIT_COMPLETED", {"critique": {
+            "is_secure": True, "finding_type": "SPECULATIVE_RISK", "confidence": "MEDIUM", "evidence": []
+        }})
+        assert len(si_invoked) == 1
+        assert si_invoked[0]["triggered_by"] == "AUDIT_COMPLETED"
+        assert si_invoked[0]["convergence_status"] == "SECURED"
+
     def test_telemetry_has_all_required_fields(self):
         mesh = make_mesh()
         mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
@@ -232,6 +281,113 @@ class TestBenchmarkTelemetry:
         }})
         bt = mesh.shared_context["benchmark_telemetry"]
         for key in ("blue_model", "red_model", "mesh_iterations", "verified_exploits",
-                    "speculative_risks", "informational_findings", "final_status",
+                    "speculative_risks", "informational_findings", "audit_degradations",
+                    "invalid_evidence_count", "evidence_downgrades", "final_status",
                     "time_started", "time_completed"):
             assert key in bt, f"Missing telemetry field: {key}"
+
+
+class TestContextDriftPrevention:
+    """Verify original vulnerability context is preserved across remediation iterations."""
+
+    ORIGINAL_VULN = {"description": "Raw string concatenation in SQL query.", "target_lines": [1, 2], "severity": "HIGH"}
+
+    def _exploit_payload(self, iteration: int):
+        """Simulate a re-iteration broadcast with exploit context (as Red Auditor would emit)."""
+        return {
+            "source_file": {"file_path": "test.py", "raw_code": "x=1", "language": "python"},
+            "vulnerability": self.ORIGINAL_VULN,
+            "exploit_context": {
+                "message": f"PREVIOUS PATCH EXPLOITED! Vector: sqli_escape_{iteration}",
+                "severity": "CRITICAL",
+                "exploit_found": f"sqli_escape_{iteration}",
+                "iteration": iteration
+            }
+        }
+
+    def test_original_vulnerability_preserved_across_iterations(self):
+        mesh = make_mesh()
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        original = mesh.shared_context["original_vulnerability"]
+        assert original["description"] == "bug"
+        for i in range(1, 4):
+            mesh.broadcast("VULNERABILITY_TRIAGED", self._exploit_payload(i))
+            assert mesh.shared_context["original_vulnerability"] == original
+            assert mesh.shared_context["original_vulnerability"]["description"] == "bug"
+
+    def test_vulnerability_always_equals_original_never_mutated(self):
+        mesh = make_mesh()
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        for i in range(1, 4):
+            mesh.broadcast("VULNERABILITY_TRIAGED", self._exploit_payload(i))
+            assert mesh.shared_context["vulnerability"]["description"] == "bug"
+            assert mesh.shared_context["vulnerability"] == mesh.shared_context["original_vulnerability"]
+
+    def test_active_vulnerability_always_equals_original(self):
+        mesh = make_mesh()
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        for i in range(1, 4):
+            mesh.broadcast("VULNERABILITY_TRIAGED", self._exploit_payload(i))
+            assert mesh.shared_context["active_vulnerability"] == mesh.shared_context["original_vulnerability"]
+
+    def test_exploit_chain_grows_with_exploit_context(self):
+        mesh = make_mesh()
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        assert len(mesh.shared_context["exploit_chain"]) == 0
+        mesh.broadcast("VULNERABILITY_TRIAGED", self._exploit_payload(1))
+        assert len(mesh.shared_context["exploit_chain"]) == 1
+        mesh.broadcast("VULNERABILITY_TRIAGED", self._exploit_payload(2))
+        assert len(mesh.shared_context["exploit_chain"]) == 2
+        mesh.broadcast("VULNERABILITY_TRIAGED", self._exploit_payload(3))
+        assert len(mesh.shared_context["exploit_chain"]) == 3
+
+    def test_exploit_chain_entry_format(self):
+        mesh = make_mesh()
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        mesh.broadcast("VULNERABILITY_TRIAGED", self._exploit_payload(1))
+        entry = mesh.shared_context["exploit_chain"][0]
+        assert "description" in entry
+        assert "severity" in entry
+        assert "exploit_found" in entry
+        assert "iteration" in entry
+        assert "PREVIOUS PATCH EXPLOITED" in entry["description"]
+        assert entry["severity"] == "CRITICAL"
+        assert entry["exploit_found"] == "sqli_escape_1"
+        assert entry["iteration"] == 1
+
+    def test_exploit_chain_not_grown_without_exploit_context(self):
+        mesh = make_mesh()
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        assert len(mesh.shared_context["exploit_chain"]) == 0
+
+    def test_multiple_exploit_entries_have_correct_iterations(self):
+        mesh = make_mesh()
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        for i in range(1, 4):
+            mesh.broadcast("VULNERABILITY_TRIAGED", self._exploit_payload(i))
+        for i, entry in enumerate(mesh.shared_context["exploit_chain"], 1):
+            assert entry["iteration"] == i
+            assert entry["exploit_found"] == f"sqli_escape_{i}"
+
+    def test_exploit_chain_compatible_with_si_formatter(self):
+        mesh = make_mesh()
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        mesh.broadcast("VULNERABILITY_TRIAGED", self._exploit_payload(1))
+        mesh.broadcast("VULNERABILITY_TRIAGED", self._exploit_payload(2))
+        from agents.security_intelligence.agent import _format_exploit_chain
+        formatted = _format_exploit_chain(mesh.shared_context["exploit_chain"])
+        assert "PREVIOUS PATCH EXPLOITED" in formatted
+        assert "CRITICAL" in formatted
+        assert formatted.startswith("  1.")
+        assert "  2." in formatted
+
+    def test_convergence_still_possible_after_reiterations(self):
+        mesh = make_mesh()
+        mesh.broadcast("VULNERABILITY_TRIAGED", vuln_payload())
+        mesh.broadcast("VULNERABILITY_TRIAGED", self._exploit_payload(1))
+        mesh.broadcast("AUDIT_COMPLETED", {"critique": {
+            "is_secure": True, "finding_type": "SPECULATIVE_RISK", "confidence": "MEDIUM", "evidence": []
+        }})
+        assert mesh.shared_context["status"] == "SECURED"

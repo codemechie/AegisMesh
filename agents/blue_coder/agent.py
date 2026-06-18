@@ -7,6 +7,17 @@ from core.aiml_client import ai_client, extract_json
 from core.model_config import get_blue_model
 
 
+def _format_exploit_chain(exploit_chain: list) -> str:
+    if not exploit_chain:
+        return "  No exploit chain entries."
+    lines = []
+    for i, e in enumerate(exploit_chain):
+        desc = e.get("description", "Unknown")
+        sev = e.get("severity", "UNKNOWN")
+        lines.append(f"  {i + 1}. {desc} (severity: {sev})")
+    return "\n".join(lines)
+
+
 def write_patch_node(state: BlueCoderState) -> dict:
     model = get_blue_model()
     print(f"\n[Blue Coder] Writing patch iteration {state['iteration_count'] + 1}...", flush=True)
@@ -14,9 +25,11 @@ def write_patch_node(state: BlueCoderState) -> dict:
 
     previous_vuln = state.get("vulnerability", None)
     iter_num = state.get("iteration_count", 0) + 1
-    is_revision = "PREVIOUS PATCH EXPLOITED" in (state.get("vulnerability", VulnerabilityReport(description="", target_lines=[], severity="")).description)
+    exploit_chain = state.get("exploit_chain", [])
+    is_revision = len(exploit_chain) > 0
 
     if is_revision:
+        exploit_details = _format_exploit_chain(exploit_chain)
         prompt = f"""
     [ITERATION {iter_num} — REVISION REQUESTED]
 
@@ -27,7 +40,12 @@ def write_patch_node(state: BlueCoderState) -> dict:
     {state['source_file'].raw_code}
     ```
 
-    Auditor's Exploit Finding: {state['vulnerability'].description}
+    Original Vulnerability (Severity: {state['vulnerability'].severity}):
+    {state['vulnerability'].description}
+    Target Lines: {state['vulnerability'].target_lines}
+
+    Exploit Chain:
+{exploit_details}
 
     Return ONLY valid PatchProposal JSON (a patch_id string, proposed_code string, architectural_changes string, dependencies_added array). No extra text.
     """

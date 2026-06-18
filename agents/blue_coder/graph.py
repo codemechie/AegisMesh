@@ -9,3 +9,4 @@ class BlueCoderState(TypedDict):
     compiler_logs: Optional[str]
     iteration_count: int
     max_iterations: int
+    exploit_chain: list

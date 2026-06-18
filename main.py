@@ -3,7 +3,7 @@
 import uuid
 from core.band_mesh import BandMeshChannel
 from core.model_config import get_blue_model, get_red_model, get_si_model
-from schemas.models import FileContext, VulnerabilityReport, PatchProposal
+from schemas.models import FileContext, VulnerabilityReport, PatchProposal, Evidence
 from agents.blue_coder.agent import blue_coder_app  # Compiled LangGraph from agent.py
 from agents.red_auditor.engine import execute_adversarial_audit  # Implemented in Phase 2, Step 3
 from agents.security_intelligence.agent import generate_security_report  # Security Intelligence Agent
@@ -25,7 +25,8 @@ def initialize_blue_coder_service(mesh: BandMeshChannel):
             "current_patch": None,
             "compiler_logs": None,
             "iteration_count": 0,
-            "max_iterations": 3
+            "max_iterations": 3,
+            "exploit_chain": channel.shared_context.get("exploit_chain", [])
         }
 
         graph_output = blue_coder_app.invoke(inputs)
@@ -48,7 +49,9 @@ def _record_audit_degradation(channel: BandMeshChannel):
     bt = channel.shared_context["benchmark_telemetry"]
     bt["audit_degradations"] = bt.get("audit_degradations", 0) + 1
     channel.shared_context.setdefault("agent_failures", []).append({
-        "agent": "red_auditor",
+        "agent": "Red Auditor Agent",
+        "event_type": "AUDIT_DEGRADATION",
+        "error": "Malformed JSON response — Stage 4 fallback used",
         "failure_type": "AUDIT_DEGRADATION",
         "reason": "Malformed JSON response",
         "recovered": True,
@@ -67,13 +70,38 @@ def initialize_red_auditor_service(mesh: BandMeshChannel):
 
         # Reconstruct the Pydantic classes out of the shared mesh data pool
         patch_obj = PatchProposal.model_validate(payload["patch"])
-        orig_vuln_desc = channel.shared_context["vulnerability"]["description"]
+        orig_vuln_desc = channel.shared_context["original_vulnerability"]["description"]
 
         # Run the adversarial analysis from Phase 2, Step 3
         critique = execute_adversarial_audit(
             patch_obj, orig_vuln_desc,
             record_failure=lambda err: _record_audit_degradation(channel)
         )
+
+        # Evidence grounding validation — reject hallucinated evidence
+        source_file = channel.shared_context.get("source_file", {})
+        source_code = source_file.get("raw_code", "") if isinstance(source_file, dict) else getattr(source_file, "raw_code", "")
+        source_file_path = source_file.get("file_path", "") if isinstance(source_file, dict) else getattr(source_file, "file_path", "")
+        invalid_count, downgraded = critique.validate_evidence(source_code, source_file_path)
+
+        if invalid_count > 0:
+            channel.shared_context["invalid_evidence_count"] = (
+                channel.shared_context.get("invalid_evidence_count", 0) + invalid_count
+            )
+            if downgraded:
+                channel.shared_context["evidence_downgrades"] = (
+                    channel.shared_context.get("evidence_downgrades", 0) + 1
+                )
+                channel.log_system_event(
+                    "Red Auditor Service",
+                    f"EVIDENCE_DOWNGRADE — VERIFIED_EXPLOIT downgraded to SPECULATIVE_RISK: "
+                    f"{invalid_count} evidence item(s) failed source validation"
+                )
+            else:
+                channel.log_system_event(
+                    "Red Auditor Service",
+                    f"INVALID_EVIDENCE — Removed {invalid_count} hallucinated evidence item(s) from critique"
+                )
 
         # Broadcast the results back out to the mesh
         channel.broadcast("AUDIT_COMPLETED", {"critique": critique.model_dump()})
@@ -85,10 +113,12 @@ def initialize_red_auditor_service(mesh: BandMeshChannel):
 
             channel.broadcast("VULNERABILITY_TRIAGED", {
                 "source_file": channel.shared_context["source_file"],
-                "vulnerability": {
+                "vulnerability": channel.shared_context["original_vulnerability"],
+                "exploit_context": {
+                    "message": f"PREVIOUS PATCH EXPLOITED! Vector: {critique.exploit_found}",
                     "severity": "CRITICAL",
-                    "description": f"PREVIOUS PATCH EXPLOITED! Vector: {critique.exploit_found}",
-                    "target_lines": channel.shared_context["vulnerability"]["target_lines"]
+                    "exploit_found": critique.exploit_found,
+                    "iteration": channel.shared_context["mesh_iteration"]
                 }
             })
         elif critique.finding_type == "SPECULATIVE_RISK":

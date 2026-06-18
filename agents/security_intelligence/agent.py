@@ -21,11 +21,14 @@ def generate_security_report(channel) -> SecurityIntelligenceReport:
 
 ## Benchmark Telemetry
 - Mesh iterations: {mesh_iter}
+- Max mesh iterations: {sc.get('max_mesh_iterations', 'N/A')}
 - Final status: {bt.get('final_status', 'N/A')}
 - Verified exploits: {bt.get('verified_exploits', 0)}
 - Speculative risks: {bt.get('speculative_risks', 0)}
 - Informational findings: {bt.get('informational_findings', 0)}
 - Audit degradations: {bt.get('audit_degradations', 0)}
+- Invalid evidence count: {bt.get('invalid_evidence_count', 0)}
+- Evidence downgrades: {bt.get('evidence_downgrades', 0)}
 - Blue model: {bt.get('blue_model', 'N/A')}
 - Red model: {bt.get('red_model', 'N/A')}
 
