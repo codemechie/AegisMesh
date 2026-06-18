@@ -1,5 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import type { FC } from "react";
 import { runMesh } from "../api/aegismesh";
 import type { MeshContext, AuditCritique } from "../types/mesh";
@@ -32,10 +33,19 @@ const Dashboard: FC = () => {
       runMesh({ source_code: sourceCode, vulnerability }),
   });
 
-  const { setData } = useMeshData();
+  const { data: contextData, setData } = useMeshData();
+
+  const [displayData, setDisplayData] = useState<MeshContext | undefined>(contextData ?? undefined);
+
+  useEffect(() => {
+    if (contextData) {
+      setDisplayData(contextData);
+    }
+  }, []);
 
   useEffect(() => {
     if (data) {
+      setDisplayData(data);
       setData(data);
     }
   }, [data, setData]);
@@ -49,38 +59,49 @@ const Dashboard: FC = () => {
 
   const handleViewFindings = useCallback(
     (type: string) => {
-      if (!data) return;
-      const filtered = data.audit_history.filter((a) => a.finding_type === type);
+      if (!displayData) return;
+      const filtered = displayData.audit_history.filter((a) => a.finding_type === type);
       setModalFindings(filtered);
       setModalFilterType(type);
     },
-    [data],
+    [displayData],
   );
+
+  const navigate = useNavigate();
 
   const handleCloseModal = useCallback(() => {
     setModalFindings([]);
     setModalFilterType(null);
   }, []);
 
-  const statusClass = data
-    ? STATUS_BADGE[data.status] ?? "bg-gray-900/60 text-gray-400 border-gray-700"
+  const statusClass = displayData
+    ? STATUS_BADGE[displayData.status] ?? "bg-gray-900/60 text-gray-400 border-gray-700"
     : "bg-gray-900/60 text-gray-500 border-gray-700";
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-6">
       <header className="flex items-center justify-between rounded-xl border border-[#1f2937] bg-[#111827] p-6 shadow-lg">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[#f3f4f6]">
-            AegisMesh
-          </h1>
-          <p className="mt-1 text-sm text-[#9ca3af]">
-            Adversarial Autonomous Security Remediation Mesh
-          </p>
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[#1f2937] bg-[#111827] px-3 py-1.5 text-xs font-semibold text-[#9ca3af] transition-colors hover:bg-[#1f2937] hover:text-[#f3f4f6]"
+          >
+            &larr; Home
+          </button>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-[#f3f4f6]">
+              AegisMesh
+            </h1>
+            <p className="mt-1 text-sm text-[#9ca3af]">
+              Adversarial Autonomous Security Remediation Mesh
+            </p>
+          </div>
         </div>
         <span
           className={`rounded-lg border px-3 py-1.5 text-xs font-semibold uppercase tracking-wider ${statusClass}`}
         >
-          {data ? data.status : "Idle"}
+          {displayData ? displayData.status : "Idle"}
         </span>
       </header>
 
@@ -92,24 +113,24 @@ const Dashboard: FC = () => {
         </div>
       )}
 
-      <SecurityIntelligenceHero ctx={data} />
+      <SecurityIntelligenceHero ctx={displayData} />
 
-      <PatchViewer ctx={data ?? null} />
+      <PatchViewer ctx={displayData ?? null} />
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <EventTimeline ctx={data} />
-        <ExploitChain ctx={data} onViewFindings={handleViewFindings} />
+        <EventTimeline ctx={displayData} />
+        <ExploitChain ctx={displayData} onViewFindings={handleViewFindings} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <SecurityConvergence ctx={data} onViewFindings={handleViewFindings} />
-        <MeshHealthCard ctx={data ?? null} />
+        <SecurityConvergence ctx={displayData} onViewFindings={handleViewFindings} />
+        <MeshHealthCard ctx={displayData ?? null} />
       </div>
 
-      <AgentFailures ctx={data} />
+      <AgentFailures ctx={displayData} />
 
       <section>
-        <AgentMeshFlow ctx={data} />
+        <AgentMeshFlow ctx={displayData} />
       </section>
 
       {(modalFindings.length > 0 || modalFilterType !== null) && (
@@ -118,9 +139,9 @@ const Dashboard: FC = () => {
           findings={modalFindings}
           filteredType={modalFilterType as "VERIFIED_EXPLOIT" | "SPECULATIVE_RISK" | "INFORMATIONAL" | null}
           onClose={handleCloseModal}
-          securityReport={data?.security_report ?? null}
-          eventHistory={data?.event_history}
-          totalIterations={data?.audit_history.length}
+          securityReport={displayData?.security_report ?? null}
+          eventHistory={displayData?.event_history}
+          totalIterations={displayData?.audit_history.length}
         />
       )}
     </div>

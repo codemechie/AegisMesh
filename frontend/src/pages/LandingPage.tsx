@@ -38,10 +38,10 @@ const LandingPage: FC = () => (
     <RevealSection>
       <ProblemSectionContent />
     </RevealSection>
-    <RevealSection className="bg-[#0d1525]">
+    <RevealSection id="how-it-works" className="bg-[#0d1525]">
       <HowItWorksSectionContent />
     </RevealSection>
-    <RevealSection className="bg-[#0d1525]">
+    <RevealSection id="ai-intelligence-layer" className="bg-[#0d1525]">
       <AIIntelligenceLayerContent />
     </RevealSection>
     <RevealSection>

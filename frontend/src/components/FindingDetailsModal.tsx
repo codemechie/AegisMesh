@@ -135,7 +135,7 @@ const FindingDetailsModal: FC<FindingDetailsModalProps> = ({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="flex w-full max-w-2xl flex-col rounded-xl border border-[#1f2937] bg-[#111827] shadow-2xl">
+      <div className="flex w-full max-w-2xl flex-col rounded-xl border border-[#1f2937] bg-[#111827] shadow-2xl max-h-[90vh]">
         {/* Header */}
         <div
           className={`flex items-center justify-between rounded-t-xl border-b px-6 py-4 ${headerBg}`}
@@ -208,7 +208,7 @@ const FindingDetailsModal: FC<FindingDetailsModalProps> = ({
         )}
 
         {/* Content */}
-        <div className={`overflow-y-auto p-6 ${borderColor}`}>
+        <div className={`min-h-0 overflow-y-auto p-6 ${borderColor}`}>
           <div className="space-y-5">
             {/* Type & Confidence */}
             <div className="flex items-center justify-between">
