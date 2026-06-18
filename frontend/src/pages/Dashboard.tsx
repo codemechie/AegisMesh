@@ -1,8 +1,8 @@
 import { useMutation } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { FC } from "react";
 import { runMesh } from "../api/aegismesh";
-import type { MeshContext } from "../types/mesh";
+import type { MeshContext, AuditCritique } from "../types/mesh";
 import { useMeshData } from "../context/MeshDataContext";
 import RunForm from "../components/RunForm";
 import SecurityIntelligenceHero from "../components/SecurityIntelligenceHero";
@@ -13,6 +13,7 @@ import SecurityConvergence from "../components/SecurityConvergence";
 import MeshHealthCard from "../components/MeshHealthCard";
 import AgentFailures from "../components/AgentFailures";
 import AgentMeshFlow from "../graph/AgentMeshFlow";
+import FindingDetailsModal from "../components/FindingDetailsModal";
 
 const STATUS_BADGE: Record<string, string> = {
   SECURED: "bg-green-900/60 text-green-400 border-green-700",
@@ -39,9 +40,27 @@ const Dashboard: FC = () => {
     }
   }, [data, setData]);
 
+  const [modalFindings, setModalFindings] = useState<AuditCritique[]>([]);
+  const [modalFilterType, setModalFilterType] = useState<string | null>(null);
+
   const handleRun = (sourceCode: string, vulnerability: string) => {
     mutate({ sourceCode, vulnerability });
   };
+
+  const handleViewFindings = useCallback(
+    (type: string) => {
+      if (!data) return;
+      const filtered = data.audit_history.filter((a) => a.finding_type === type);
+      setModalFindings(filtered);
+      setModalFilterType(type);
+    },
+    [data],
+  );
+
+  const handleCloseModal = useCallback(() => {
+    setModalFindings([]);
+    setModalFilterType(null);
+  }, []);
 
   const statusClass = data
     ? STATUS_BADGE[data.status] ?? "bg-gray-900/60 text-gray-400 border-gray-700"
@@ -79,11 +98,11 @@ const Dashboard: FC = () => {
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <EventTimeline ctx={data} />
-        <ExploitChain ctx={data} />
+        <ExploitChain ctx={data} onViewFindings={handleViewFindings} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <SecurityConvergence ctx={data} />
+        <SecurityConvergence ctx={data} onViewFindings={handleViewFindings} />
         <MeshHealthCard ctx={data ?? null} />
       </div>
 
@@ -92,6 +111,18 @@ const Dashboard: FC = () => {
       <section>
         <AgentMeshFlow ctx={data} />
       </section>
+
+      {(modalFindings.length > 0 || modalFilterType !== null) && (
+        <FindingDetailsModal
+          key={`${modalFilterType ?? "all"}-${modalFindings.length}`}
+          findings={modalFindings}
+          filteredType={modalFilterType as "VERIFIED_EXPLOIT" | "SPECULATIVE_RISK" | "INFORMATIONAL" | null}
+          onClose={handleCloseModal}
+          securityReport={data?.security_report ?? null}
+          eventHistory={data?.event_history}
+          totalIterations={data?.audit_history.length}
+        />
+      )}
     </div>
   );
 };

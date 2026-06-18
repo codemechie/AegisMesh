@@ -3,6 +3,7 @@ import type { MeshContext } from "../types/mesh";
 
 interface SecurityConvergenceProps {
   ctx?: MeshContext;
+  onViewFindings?: (type: string) => void;
 }
 
 const FT_COLORS: Record<string, string> = {
@@ -11,7 +12,7 @@ const FT_COLORS: Record<string, string> = {
   INFORMATIONAL: "bg-blue-900/60 text-blue-400",
 };
 
-const SecurityConvergence: FC<SecurityConvergenceProps> = ({ ctx }) => {
+const SecurityConvergence: FC<SecurityConvergenceProps> = ({ ctx, onViewFindings }) => {
   if (!ctx || ctx.audit_history.length === 0) {
     return (
       <div className="rounded-lg border border-[#1f2937] bg-[#111827] p-3">
@@ -41,9 +42,11 @@ const SecurityConvergence: FC<SecurityConvergenceProps> = ({ ctx }) => {
 
       <div className="space-y-1">
         {ctx.audit_history.map((entry, i) => (
-          <div
+          <button
             key={i}
-            className="flex items-center justify-between rounded bg-[#0a0f1a] px-2.5 py-1.5"
+            type="button"
+            onClick={() => onViewFindings?.(entry.finding_type)}
+            className="flex w-full items-center justify-between rounded bg-[#0a0f1a] px-2.5 py-1.5 transition-colors hover:bg-[#1f2937]"
           >
             <span className="text-xs text-[#f3f4f6]">Iteration {i + 1}</span>
             <div className="flex items-center gap-2">
@@ -60,7 +63,7 @@ const SecurityConvergence: FC<SecurityConvergenceProps> = ({ ctx }) => {
                 {entry.finding_type}
               </span>
             </div>
-          </div>
+          </button>
         ))}
       </div>
 

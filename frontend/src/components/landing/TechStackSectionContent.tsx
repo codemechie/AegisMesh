@@ -16,10 +16,10 @@ const TechStackSectionContent: FC = () => (
           key={cat.title}
           className={`group rounded-xl border ${cat.border} ${cat.bg} p-6 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg`}
         >
-          <div className="mb-1 text-xs font-bold uppercase tracking-wider text-[#6b7280] transition-colors duration-300 group-hover:text-[#9ca3af]">
+            <div className="mb-1 text-xs font-bold uppercase tracking-wider text-[#9ca3af] transition-colors duration-300 group-hover:text-[#d1d5db]">
             {cat.title}
           </div>
-          <p className="mb-4 text-[10px] leading-relaxed text-[#4b5563]">
+            <p className="mb-4 text-[10px] leading-relaxed text-[#9ca3af]">
             {cat.description}
           </p>
           <ul className="space-y-2.5">

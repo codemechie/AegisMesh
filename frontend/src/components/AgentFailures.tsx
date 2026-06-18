@@ -37,10 +37,10 @@ const AgentFailures: FC<AgentFailuresProps> = ({ ctx }) => {
             {failures.map((f, i) => (
               <tr key={i} className="border-t border-red-900/30">
                 <td className="py-1 pr-3 font-medium text-[#f3f4f6]">{f.agent}</td>
-                <td className="py-1 pr-3 text-[#f3f4f6]">{f.event_type}</td>
+                <td className="py-1 pr-3 text-[#f3f4f6]">{f.event_type ?? f.failure_type ?? "—"}</td>
                 <td className="py-1">
                   <pre className="whitespace-pre-wrap font-mono text-[10px] text-red-300">
-                    {f.error}
+                    {f.error ?? f.reason ?? "—"}
                   </pre>
                 </td>
               </tr>

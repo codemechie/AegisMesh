@@ -45,7 +45,7 @@ const TranscriptPreviewSectionContent: FC = () => (
         ))}
       </div>
       <div className="border-t border-[#1f2937] bg-[#0a0f1a] px-4 py-3 text-center">
-        <span className="text-[10px] text-[#4b5563]">
+        <span className="text-[10px] text-[#9ca3af]">
           Full transcript with timestamps, finding badges, and session metadata
         </span>
       </div>

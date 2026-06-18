@@ -51,8 +51,12 @@ export interface EventRecord {
 
 export interface AgentFailure {
   agent: string;
-  event_type: string;
-  error: string;
+  event_type?: string;
+  error?: string;
+  failure_type?: string;
+  reason?: string;
+  recovered?: boolean;
+  timestamp?: string;
 }
 
 export interface ExploitChainEntry {

@@ -10,13 +10,13 @@ const FooterSectionContent: FC = () => (
             <Logo />
             <span className="text-base font-bold tracking-tight text-[#f3f4f6]">AegisMesh</span>
           </a>
-          <p className="mt-3 max-w-xs text-xs leading-relaxed text-[#6b7280]">
+          <p className="mt-3 max-w-xs text-xs leading-relaxed text-[#9ca3af]">
             Autonomous security remediation powered by multi-agent AI collaboration. Three frontier models work
             together to find, patch, and validate vulnerabilities.
           </p>
         </div>
         <div>
-          <h4 className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#4b5563]">Product</h4>
+          <h4 className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#22c55e]">Product</h4>
           <ul className="mt-4 space-y-2.5">
             <li>
               <a href="/dashboard" className="text-xs text-[#9ca3af] transition-colors hover:text-[#f3f4f6]">
@@ -43,7 +43,7 @@ const FooterSectionContent: FC = () => (
           </ul>
         </div>
         <div>
-          <h4 className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#4b5563]">Technology</h4>
+          <h4 className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#22c55e]">Technology</h4>
           <ul className="mt-4 space-y-2.5">
             <li>
               <span className="text-xs text-[#9ca3af]">BAND</span>
@@ -60,7 +60,7 @@ const FooterSectionContent: FC = () => (
           </ul>
         </div>
         <div>
-          <h4 className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#4b5563]">Connect</h4>
+          <h4 className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#22c55e]">Connect</h4>
           <ul className="mt-4 space-y-2.5">
             <li>
               <a href="#" className="text-xs text-[#9ca3af] transition-colors hover:text-[#f3f4f6]">
@@ -82,11 +82,11 @@ const FooterSectionContent: FC = () => (
       </div>
       <div className="mt-10 border-t border-[#1f2937] pt-6">
         <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
-          <p className="text-[10px] text-[#4b5563]">
+          <p className="text-xs text-[#9ca3af]">
             &copy; 2026 AegisMesh. Multi-Agent Security Remediation System.
           </p>
-          <p className="text-[10px] text-[#4b5563]">
-            Powered by <span className="text-[#22c55e]">BAND</span>
+          <p className="text-xs font-medium text-[#4b5563]">
+            Powered by <span className="text-sm font-bold text-[#22c55e]">BAND</span>
           </p>
         </div>
       </div>
