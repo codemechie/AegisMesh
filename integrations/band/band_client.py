@@ -100,6 +100,11 @@ class BandClient:
     ) -> tuple[bool, str | Exception]:
         """Send a message to a room with optional @mentions.
 
+        The BAND API requires at least one mention per message and
+        forbids self-mentions.  Self-mentions are silently dropped;
+        when no valid mentions remain, all other participants are
+        mentioned as a fallback.
+
         Returns:
             (True, message_id) on success, (False, Exception) on failure.
         """
@@ -109,12 +114,21 @@ class BandClient:
                 ChatMessageRequestMentionsItem,
             )
 
-            mentions = []
+            mentions: list[ChatMessageRequestMentionsItem] = []
             if mention_ids:
                 mentions = [
                     ChatMessageRequestMentionsItem(id=mid)
                     for mid in mention_ids
+                    if mid != self.agent_id
                 ]
+
+            if not mentions:
+                for pid in (self.red_agent_id, self.si_agent_id):
+                    if pid and pid != self.agent_id:
+                        mentions.append(
+                            ChatMessageRequestMentionsItem(id=pid)
+                        )
+
             resp = self._rest.agent_api_messages.create_agent_chat_message(
                 chat_id=room_id,
                 message=ChatMessageRequest(

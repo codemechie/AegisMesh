@@ -17,6 +17,11 @@ app.add_middleware(
 )
 
 
+@app.get("/api/health")
+def health():
+    return {"status": "healthy", "service": "AegisMesh API", "version": "1.0.0"}
+
+
 class RunRequest(BaseModel):
     source_code: str
     vulnerability: str

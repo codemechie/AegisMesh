@@ -135,3 +135,9 @@ export interface RunRequest {
   source_code: string;
   vulnerability: string;
 }
+
+export interface HealthResponse {
+  status: string;
+  service: string;
+  version: string;
+}
