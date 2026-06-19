@@ -167,7 +167,7 @@ export const BENCHMARK_FINDINGS = [
 export const TECH_CATEGORIES = [
   {
     title: "AI Intelligence",
-    items: ["Qwen3-Coder", "DeepSeek", "GPT-4o"],
+    items: ["AI/ML"],
     description: "Frontier models selected for specialized security reasoning and code generation.",
     border: "border-purple-900/40",
     bg: "bg-purple-900/10",
@@ -191,8 +191,8 @@ export const TECH_CATEGORIES = [
   },
   {
     title: "Deployment",
-    items: ["Vercel"],
-    description: "Edge-optimized serverless deployment with global CDN distribution.",
+    items: ["Vercel", "Render"],
+    description: "Edge-optimized serverless (Vercel) and containerized backend hosting (Render).",
     border: "border-[#22c55e]/30",
     bg: "bg-[#22c55e]/10",
     dot: "bg-[#22c55e]",
